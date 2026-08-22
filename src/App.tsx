@@ -1,6 +1,9 @@
 import { useRef, useState, useMemo } from "react"
 import { toPng } from "html-to-image"
 import { markdownToUnicode } from "./lib/unicode"
+import { useAuth } from "./lib/auth"
+import AiBar from "./components/AiBar"
+import SettingsModal from "./components/SettingsModal"
 
 const FOLD = 210
 const DEFAULT_POST = `Your catchy title here — make it **bold** and irresistible.
@@ -28,6 +31,8 @@ const GRADIENTS = [
 ]
 
 export default function App() {
+  const { user, apiKey } = useAuth()
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [tab, setTab] = useState<"preview"|"format"|"card">("preview")
   const [device, setDevice] = useState<"mobile"|"desktop">("desktop")
   const [dark, setDark] = useState(false)
@@ -98,7 +103,9 @@ export default function App() {
             <span className="hidden sm:inline-flex ml-2 text-[11px] px-2 py-1 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-black">v1.0 • Netlify Ready</span>
           </div>
           <div className="flex items-center gap-2">
-            <a href="https://github.com" target="_blank" className="hidden md:inline-flex text-xs font-medium px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800">⭐ Star on GitHub</a>
+            <button onClick={()=>setSettingsOpen(true)} className={`hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border ${apiKey?"bg-emerald-50 border-emerald-200 text-emerald-700":"bg-amber-50 border-amber-200 text-amber-700"}`}>{apiKey?"✓ AI Ready":"⚙️ Add Gemini Key"}</button>
+            {user ? <img src={user.picture} alt={user.name} className="w-8 h-8 rounded-full border"/> : <button onClick={()=>setSettingsOpen(true)} className="text-xs px-3 py-1.5 rounded-full border bg-white dark:bg-zinc-800">Sign in</button>}
+            <a href="https://github.com/SatyaDileep/Content-Crafting-Wand-For-LinkedIn" target="_blank" className="hidden md:inline-flex text-xs font-medium px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800">⭐ Star</a>
             <button onClick={()=>setDark(!dark)} className="w-8 h-8 grid place-items-center rounded-full border border-zinc-200 dark:border-zinc-700">{dark?"☀️":"🌙"}</button>
           </div>
         </div>
@@ -127,6 +134,7 @@ export default function App() {
               </div>
             </div>
 
+            <AiBar text={content} onResult={setContent} />
             <div className="p-3 flex flex-wrap gap-1.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900">
               {[
                 ["𝗕 Bold", "**"],
@@ -170,11 +178,7 @@ export default function App() {
               </button>
             </div>
             <div className="px-3 pb-3 flex gap-2">
-              <button onClick={()=>{
-                const enhanced = content.replace(/make it \*\*bold\*\*/i,"make it **bold & scroll-stopping**").replace(/This is the hook/i,"🔥 This is the hook — 3 seconds to stop the scroll")
-                if(enhanced===content) setContent(c=> "✨ " + c + "\n\n—\nP.S. What would you add?")
-                else setContent(enhanced)
-              }} className="flex-1 py-2 rounded-full border text-xs font-medium bg-white dark:bg-zinc-800">✨ Auto-Enhance</button>
+              <button onClick={()=> apiKey ? null : setSettingsOpen(true)} className="flex-1 py-2 rounded-full border text-xs font-medium bg-white dark:bg-zinc-800">{apiKey?"✨ AI via Gemini (use bar above)":"🔑 Add Gemini Key for AI"}</button>
               <button onClick={()=>setContent(DEFAULT_POST)} className="px-4 py-2 rounded-full border text-xs">Reset</button>
             </div>
           </div>
@@ -355,9 +359,10 @@ export default function App() {
 
       <footer className="max-w-[1280px] mx-auto px-4 pb-8 text-center text-xs text-zinc-500">
         <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-          Open Source • MIT • Made with ♥ for LinkedIn creators • <a href={linkedinUrl} target="_blank" className="underline">satya-dileep</a> • #ContentCrafter
+          Open Source • MIT • BYO Gemini • Keys in localStorage only • <a href={linkedinUrl} target="_blank" className="underline">satya-dileep</a> • #ContentCrafter
         </div>
       </footer>
+      <SettingsModal open={settingsOpen} onClose={()=>setSettingsOpen(false)} />
     </div>
   )
 }
