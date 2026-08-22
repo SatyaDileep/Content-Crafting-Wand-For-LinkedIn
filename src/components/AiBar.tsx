@@ -16,7 +16,7 @@ export default function AiBar({ text, onResult }: { text: string; onResult: (t: 
   const [error, setError] = useState("")
   async function run(a: GeminiAction){
     setError("")
-    if(!apiKey){ setError("Add your Gemini API key in Settings — stored locally, never sent to us."); return }
+    if(!apiKey){ setError("Add your Gemini key in Settings to enable AI."); return }
     if(!text.trim() && a!=="generate"){ setError("Write something first."); return }
     setLoading(a)
     try{
@@ -32,7 +32,7 @@ export default function AiBar({ text, onResult }: { text: string; onResult: (t: 
         <Btn a="emojis" label="😊 Add Emojis" loading={loading} onClick={run} />
         <Btn a="professional" label="💼 Pro" loading={loading} onClick={run} />
         <Btn a="generate" label="🤖 Auto-Generate" loading={loading} onClick={run} />
-        <span className="ml-auto text-[11px] text-zinc-500 self-center hidden sm:inline">Your key · stays local</span>
+        <span className="ml-auto text-[11px] text-zinc-400 self-center hidden sm:inline">Powered by Gemini</span>
       </div>
       {error && <div className="mt-2 text-xs px-2 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">{error}</div>}
     </div>

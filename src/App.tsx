@@ -148,7 +148,7 @@ export default function App() {
   const deviceWidths = { mobile: "max-w-[390px]", tablet: "max-w-[520px]", desktop: "max-w-[560px]" }
 
   return (
-    <div className={dark?"dark bg-[#0a0a0a] text-white":"bg-[#f4f2ee] text-zinc-900"} >
+    <div className={dark?"dark bg-[#111113] text-zinc-100":"bg-[#f4f2ee] text-zinc-900"} >
       <header className="sticky top-0 z-30 backdrop-blur bg-white/80 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800">
         <div className="max-w-[1280px] mx-auto px-4 h-[56px] flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -157,7 +157,7 @@ export default function App() {
               <div className="font-bold leading-none text-[16px]">Content Crafter</div>
               <div className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-none">Wand for LinkedIn</div>
             </div>
-            <span className="hidden sm:inline-flex ml-2 text-[11px] px-2 py-1 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-black">Free · No signup</span>
+            <span className="hidden sm:inline-flex ml-2 text-[11px] px-2 py-1 rounded-full bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">Free · No signup</span>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={()=>setSettingsOpen(true)} className={`hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border ${apiKey?"bg-emerald-50 border-emerald-200 text-emerald-700":"bg-amber-50 border-amber-200 text-amber-700"}`}>{apiKey?"✓ AI Ready":"⚙️ Add Gemini Key"}</button>
@@ -168,9 +168,9 @@ export default function App() {
         </div>
         <div className="max-w-[1280px] mx-auto px-4 flex items-center gap-2 py-2 overflow-auto">
           {[
-            ["preview","Feed Preview","See how it looks in feed"],
-            ["format","Rich Text Formatter","Unicode · Copy"],
-            ["card","Image Card","Craft & download"],
+            ["preview","Feed Preview","Preview your post"],
+            ["format","Formatter","Unicode formatting"],
+            ["card","Image Card","Export as PNG"],
           ].map(([id,label,sub])=>(
             <button key={id} onClick={()=>setTab(id as any)} className={`text-left px-4 py-2.5 rounded-xl border flex-1 min-w-[140px] transition ${tab===id?"bg-[#0A66C2] text-white border-[#0A66C2] shadow":"bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"}`}>
               <div className="text-[13px] font-semibold leading-none">{label}</div>
@@ -236,7 +236,7 @@ export default function App() {
               </button>
             </div>
             <div className="px-3 pb-3 flex gap-2">
-              <button onClick={()=> apiKey ? null : setSettingsOpen(true)} className="flex-1 py-2 rounded-full border text-xs font-medium bg-white dark:bg-zinc-800">{apiKey?"✨ AI writing assistant":"🔑 Add Gemini Key for AI"}</button>
+              <button onClick={()=> apiKey ? null : setSettingsOpen(true)} className="flex-1 py-2 rounded-full border text-xs font-medium bg-white dark:bg-zinc-800">{apiKey?"✨ AI Assistant":"🔑 Enable AI"}</button>
               <button onClick={()=>setContent(DEFAULT_POST)} className="px-4 py-2 rounded-full border text-xs">Reset</button>
             </div>
           </div>
@@ -278,19 +278,16 @@ export default function App() {
                 </div>
               </>}
               <div className="flex gap-2">
-                <button onClick={()=>setDevice("mobile")} className={`flex-1 py-2 rounded-full text-xs font-medium border ${device==="mobile"?"bg-zinc-900 text-white":"bg-white dark:bg-zinc-800"}`}>📱 Mobile</button>
-                <button onClick={()=>setDevice("tablet")} className={`flex-1 py-2 rounded-full text-xs font-medium border ${device==="tablet"?"bg-zinc-900 text-white":"bg-white dark:bg-zinc-800"}`}>📱 Tablet</button>
-                <button onClick={()=>setDevice("desktop")} className={`flex-1 py-2 rounded-full text-xs font-medium border ${device==="desktop"?"bg-zinc-900 text-white":"bg-white dark:bg-zinc-800"}`}>🖥️ Desktop</button>
+                <button onClick={()=>setDevice("mobile")} className={`flex-1 py-2 rounded-full text-xs font-medium border transition ${device==="mobile"?"bg-zinc-900 text-white border-zinc-900 dark:bg-white dark:text-zinc-900 dark:border-white":"bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"}`}>📱 Mobile</button>
+                <button onClick={()=>setDevice("tablet")} className={`flex-1 py-2 rounded-full text-xs font-medium border transition ${device==="tablet"?"bg-zinc-900 text-white border-zinc-900 dark:bg-white dark:text-zinc-900 dark:border-white":"bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"}`}>📱 Tablet</button>
+                <button onClick={()=>setDevice("desktop")} className={`flex-1 py-2 rounded-full text-xs font-medium border transition ${device==="desktop"?"bg-zinc-900 text-white border-zinc-900 dark:bg-white dark:text-zinc-900 dark:border-white":"bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"}`}>🖥️ Desktop</button>
               </div>
             </div>
-          </details>
-
-          <div className="bg-[#0A66C2] text-white rounded-2xl p-4">
-            <div className="text-sm font-semibold">Why Content Crafter?</div>
-            <div className="text-xs opacity-90 mt-1 leading-relaxed">Your posts stay on your device. Nothing leaves your browser. Craft beautiful LinkedIn posts, preview exactly as they appear in the feed, and copy Unicode formatting that actually sticks.</div>
-            <div className="mt-3 flex gap-2">
-              <a href="https://github.com/SatyaDileep/Content-Crafting-Wand-For-LinkedIn" target="_blank" className="text-xs font-semibold bg-white text-[#0A66C2] px-3 py-1.5 rounded-full">View on GitHub</a>
-              <a href="https://github.com/SatyaDileep/Content-Crafting-Wand-For-LinkedIn/fork" target="_blank" className="text-xs font-semibold bg-white/15 px-3 py-1.5 rounded-full border border-white/20">Fork & Customize</a>
+          </details>            <div className="bg-gradient-to-br from-[#0A66C2] to-[#004182] text-white rounded-2xl p-5">
+            <div className="text-sm font-semibold">Write better. Post with confidence.</div>
+            <div className="text-xs opacity-80 mt-1.5 leading-relaxed">Preview your post exactly as readers will see it. One click to copy formatting that LinkedIn keeps.</div>
+            <div className="mt-3">
+              <a href="https://github.com/SatyaDileep/Content-Crafting-Wand-For-LinkedIn" target="_blank" className="text-xs font-semibold bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-full transition">View on GitHub →</a>
             </div>
           </div>
         </div>
@@ -299,7 +296,7 @@ export default function App() {
           {tab==="preview" && (
             <>
               <div className="flex items-center justify-between">
-                <div className="text-xs text-zinc-500">Preview · {device} · {dark?"dark":"light"} · {showFold?"fold on":"fold off"}</div>
+                <div className="text-xs text-zinc-500">{device} · {dark?"dark mode":"light mode"}</div>
                 <button onClick={()=>setExpanded(!expanded)} className="text-xs px-3 py-1.5 rounded-full border bg-white dark:bg-zinc-900">{expanded?"Collapse":"See more"}</button>
               </div>
               <div className={`mx-auto transition-all ${deviceWidths[device]}`}>
@@ -370,8 +367,8 @@ export default function App() {
             <div className="space-y-4">
               <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4">
                 <div className="flex items-center justify-between">
-                  <div className="font-semibold text-sm">Unicode Preview</div>
-                  <span className="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Live · Paste-ready</span>
+                  <div className="font-semibold text-sm">Formatted Output</div>
+                  <span className="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Paste-ready</span>
                 </div>
                 <div className="mt-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 min-h-[220px] whitespace-pre-wrap break-words text-[14px] leading-6">
                   {unicode || <span className="text-zinc-400">Formatted output appears here...</span>}
@@ -382,7 +379,7 @@ export default function App() {
                   <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800 border text-center"><div className="font-bold text-sm">{unicode.split("\n").length}</div><div className="text-zinc-500">lines</div></div>
                 </div>
                 <button onClick={copyUnicode} className="mt-3 w-full py-3 rounded-xl bg-[#0A66C2] text-white font-semibold hover:bg-[#004182]">{copied?"✓ Copied to clipboard":"📋 Copy Formatted for LinkedIn"}</button>
-                <div className="mt-2 text-[11px] text-zinc-500 text-center">Bold, italic, and strikethrough survive paste on LinkedIn</div>
+                <div className="mt-2 text-[11px] text-zinc-500 text-center">Formatting survives paste on LinkedIn</div>
               </div>
 
               <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-2xl p-4">
@@ -399,7 +396,7 @@ export default function App() {
           {tab==="card" && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold">Image Card · Export</div>
+                <div className="text-sm font-semibold">Image Card</div>
                 <button onClick={()=>exportImage(cardRef)} className="text-xs px-3 py-1.5 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">⬇ Download PNG</button>
               </div>
               <div className="flex justify-center">
@@ -461,24 +458,24 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="text-xs text-zinc-500 text-center">17 themes · Markdown content · macOS-style export card</div>
+              <div className="text-xs text-zinc-500 text-center">17 themes · Markdown content · Retina export</div>
             </div>
           )}
 
           <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-[#0A66C2] grid place-items-center text-white text-xs">✦</div>
             <div className="text-xs">
-              <div className="font-semibold">100% client-side · Your data never leaves your device</div>
-              <div className="text-zinc-500 dark:text-zinc-400">MIT licensed. Fork it, customize it, make it yours. Built with Vite + React + Tailwind.</div>
+              <div className="font-semibold">Free & open source</div>
+              <div className="text-zinc-500 dark:text-zinc-400">No account. No tracking. Your content stays in your browser.</div>
             </div>
-            <a href="https://github.com/SatyaDileep/Content-Crafting-Wand-For-LinkedIn" target="_blank" className="ml-auto hidden sm:inline-flex text-xs font-semibold px-4 py-2 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">GitHub →</a>
+            <a href="https://github.com/SatyaDileep/Content-Crafting-Wand-For-LinkedIn" target="_blank" className="ml-auto hidden sm:inline-flex text-xs font-semibold px-4 py-2 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">Star on GitHub</a>
           </div>
         </div>
       </main>
 
       <footer className="max-w-[1280px] mx-auto px-4 pb-8 text-center text-xs text-zinc-500">
         <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-          MIT · Open Source · Made with ❤️ · <a href={linkedinUrl} target="_blank" className="underline">satya-dileep</a> · #ContentCrafter
+          <a href={linkedinUrl} target="_blank" className="underline">satya-dileep</a> · MIT · Open Source
         </div>
       </footer>
       <SettingsModal open={settingsOpen} onClose={()=>setSettingsOpen(false)} />

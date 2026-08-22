@@ -10,6 +10,7 @@
 
 * { font-family: var(--font-sans); }
 body { background: #f4f2ee; }
+.dark body, .dark { background: #111113; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
 

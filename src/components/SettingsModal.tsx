@@ -58,8 +58,8 @@ export default function SettingsModal({ open, onClose }: { open:boolean; onClose
             <div className="text-xs text-zinc-500 mt-1">Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" className="underline text-[#0A66C2]">aistudio.google.com/app/apikey</a> · Stored in your browser only</div>
             <input value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="AIza..." type="password" className="mt-2 w-full px-3 py-2.5 rounded-xl border text-sm dark:bg-zinc-800 dark:border-zinc-700"/>
             <div className="mt-2 flex gap-2">
-              <button onClick={()=>setApiKey("")} className="text-xs px-3 py-1.5 rounded-full border">Clear key</button>
-              <span className="text-[11px] text-zinc-500 self-center">{apiKey ? "✓ Key saved locally" : "No key set — AI buttons will prompt"}</span>
+              <button onClick={()=>setApiKey("")} className="text-xs px-3 py-1.5 rounded-full border">Clear</button>
+              <span className="text-[11px] text-zinc-500 self-center">{apiKey ? "✓ Saved" : "Not set"}</span>
             </div>
           </div>
 
