@@ -1,6 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;700&display=swap');
 @import "tailwindcss";
 
+/* Force dark: variants to use .dark class, not prefers-color-scheme */
+@custom-variant dark (&:is(.dark *));
+
 @theme {
   --color-linkedin: #0A66C2;
   --color-linkedin-dark: #004182;
@@ -10,11 +13,12 @@
 
 * { font-family: var(--font-sans); }
 body { background: #f4f2ee; }
-.dark body, .dark { background: #111113; }
+.dark, .dark body { background: #111113; }
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
 
-/* Range input styling */
+/* Range input */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -43,21 +47,14 @@ input[type="range"]::-moz-range-thumb {
   border: 2px solid white;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
-.dark input[type="range"] {
-  background: #3f3f46;
-}
+.dark input[type="range"] { background: #3f3f46; }
 
-/* Color input styling */
+/* Color input */
 input[type="color"] {
   -webkit-appearance: none;
   appearance: none;
   border: none;
   cursor: pointer;
 }
-input[type="color"]::-webkit-color-swatch-wrapper {
-  padding: 2px;
-}
-input[type="color"]::-webkit-color-swatch {
-  border: 1px solid #d4d4d8;
-  border-radius: 6px;
-}
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+input[type="color"]::-webkit-color-swatch { border: 1px solid #d4d4d8; border-radius: 6px; }
