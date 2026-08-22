@@ -1,4 +1,4 @@
-export type GeminiAction = "improve" | "emojis" | "professional" | "generate" | "hashtags"
+export type GeminiAction = "improve" | "emojis" | "professional" | "generate" | "hashtags" | "generateThought" | "generateTitleHeader"
 
 const PROMPTS: Record<GeminiAction, (text: string)=>string> = {
   improve: t => `You are a LinkedIn ghostwriter. Improve this post for clarity, hook, and engagement while keeping markdown bold (**text**) and bullets. Keep under 180 words. Return only the improved post:\n\n${t}`,
@@ -6,6 +6,8 @@ const PROMPTS: Record<GeminiAction, (text: string)=>string> = {
   professional: t => `Rewrite this LinkedIn post in a crisp, professional, executive tone. Keep markdown formatting. Return only the post:\n\n${t}`,
   generate: t => `Generate a viral LinkedIn post from this idea/topic. Use a strong hook (first line), 3-5 line story, 3 bullet takeaways, and a question CTA. Use markdown **bold** sparingly and include 3 hashtags. Idea: ${t || "Share a lesson about building in public"}`,
   hashtags: t => `Suggest 5 concise LinkedIn hashtags for this post (space-separated, with #). Post:\n\n${t}`,
+  generateThought: t => `Based on the following LinkedIn post content, generate a short, insightful, and concise "highlighted thought" that stands out as a pull quote. Maximum 3 lines. Include 1-2 relevant emojis. Return ONLY the thought text, nothing else:\n\n${t}`,
+  generateTitleHeader: t => `Based on the following post content, generate a short catchy card title and a concise series header (like "AI-Byte Series #Day24"). Format the response EXACTLY as: Title | Header. Return nothing else:\n\n${t}`,
 }
 
 export async function callGemini(action: GeminiAction, text: string, apiKey: string, model="gemini-2.0-flash"): Promise<string> {
