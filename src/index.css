@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;700&display=swap');
 @import "tailwindcss";
 
-/* Force dark: variants to use .dark class, not prefers-color-scheme */
-@custom-variant dark (&:is(.dark *));
+/* Override dark: variant to use .dark class, not prefers-color-scheme media query */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --color-linkedin: #0A66C2;
@@ -12,8 +12,8 @@
 }
 
 * { font-family: var(--font-sans); }
-body { background: #f4f2ee; }
-.dark, .dark body { background: #111113; }
+body { background: #f8f8f6; color: #18181b; }
+.dark body { background: #111113; color: #f4f4f5; }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
