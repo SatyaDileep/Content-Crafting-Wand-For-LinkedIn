@@ -81,6 +81,25 @@ export default function App() {
   const [avatar, setAvatar] = useState("https://i.pravatar.cc/200?img=33")
   const [linkedinUrl, setLinkedinUrl] = useState("https://www.linkedin.com/in/satya-dileep-kumar-thotakura-9b25021b/")
 
+  /* Avatar as data URL (for CORS-safe export) */
+  const [avatarDataUrl, setAvatarDataUrl] = useState("")
+  useEffect(() => {
+    if (!avatar) { setAvatarDataUrl(""); return }
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    img.onload = () => {
+      try {
+        const c = document.createElement("canvas")
+        c.width = img.naturalWidth; c.height = img.naturalHeight
+        c.getContext("2d")!.drawImage(img, 0, 0)
+        setAvatarDataUrl(c.toDataURL("image/png"))
+      } catch { setAvatarDataUrl("") }
+    }
+    img.onerror = () => setAvatarDataUrl("")
+    img.src = avatar
+  }, [avatar])
+  const resolvedAvatar = avatarDataUrl || avatar
+
   /* Card state */
   const [gradient, setGradient] = useState(GRADIENTS[2])
   const [cardHeader, setCardHeader] = useState("AI-Byte Series #Day24")
@@ -137,32 +156,15 @@ export default function App() {
     if (!ref?.current) { alert("Nothing to export on this tab."); return }
     setExporting(true)
     try {
-      // Convert cross-origin images to data URLs so html-to-image can render them
-      const imgs = ref.current.querySelectorAll("img")
-      await Promise.all(Array.from(imgs).map(async (img) => {
-        if (img.crossOrigin === "anonymous" && img.src.startsWith("http")) {
-          try {
-            const res = await fetch(img.src, { mode: "cors" })
-            const blob = await res.blob()
-            const dataUrl = await new Promise<string>((resolve) => {
-              const reader = new FileReader()
-              reader.onloadend = () => resolve(reader.result as string)
-              reader.readAsDataURL(blob)
-            })
-            img.src = dataUrl
-          } catch { /* leave src as-is, toPng may still work */ }
-        }
-      }))
       const dataUrl = await toPng(ref.current, {
         cacheBust: true,
         pixelRatio: 2,
-        skipAutoScale: true,
-        style: { transform: "none" },
+        backgroundColor: tab === "card" ? undefined : "#ffffff",
       })
-      const a = document.createElement("a"); a.download = "linkedin-card.png"; a.href = dataUrl; a.click()
+      const a = document.createElement("a"); a.download = "linkedin-post.png"; a.href = dataUrl; a.click()
     } catch (e: any) {
       console.error("Export failed:", e)
-      alert("Export failed — check console for details.")
+      alert("Export failed: " + e.message)
     } finally {
       setExporting(false)
     }
@@ -441,7 +443,7 @@ export default function App() {
                   <div ref={feedRef} className="rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-sm bg-white dark:bg-zinc-900">
                     {/* Post header */}
                     <div className="p-3 flex gap-3">
-                      <img src={avatar} crossOrigin="anonymous" onError={e => (e.currentTarget.src = "https://i.pravatar.cc/200")} alt="avatar" className="w-12 h-12 rounded-full object-cover shrink-0" />
+                      <img src={resolvedAvatar || avatar} alt="avatar" className="w-12 h-12 rounded-full object-cover shrink-0" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -550,7 +552,7 @@ export default function App() {
                     {/* Glass footer */}
                     <div className="px-6 py-4 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.05)", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
                       <div className="flex items-center gap-3">
-                        <img src={avatar} crossOrigin="anonymous" alt="" className="w-10 h-10 rounded-full object-cover" style={{ border: `2px solid ${textColor}` }} />
+                        <img src={resolvedAvatar || avatar} alt="" className="w-10 h-10 rounded-full object-cover" style={{ border: `2px solid ${textColor}` }} />
                         <div>
                           <div className="font-semibold text-sm leading-none" style={{ color: textColor }}>{name}</div>
                           <div className="text-xs mt-1" style={{ color: textColor, opacity: 0.8 }}>{headline}</div>
