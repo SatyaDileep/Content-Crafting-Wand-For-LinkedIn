@@ -65,7 +65,7 @@ const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 dark:border
 export default function App() {
   const { apiKey } = useAuth()
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [tab, setTab] = useState<"preview" | "format" | "card">("preview")
+  const [tab, setTab] = useState<"preview" | "card">("preview")
   const [device, setDevice] = useState<"mobile" | "tablet" | "desktop">("desktop")
   const [dark, setDark] = useTheme()
   const [showFold, setShowFold] = useState(true)
@@ -165,7 +165,6 @@ export default function App() {
   const deviceWidths = { mobile: "max-w-[390px]", tablet: "max-w-[520px]", desktop: "max-w-[560px]" }
   const tabs = [
     { id: "preview" as const, label: "Feed Preview", sub: "See how it looks in feed" },
-    { id: "format" as const, label: "Formatter", sub: "Unicode copy" },
     { id: "card" as const, label: "Image Card", sub: "17 themes · Export PNG" },
   ]
 
@@ -483,36 +482,6 @@ export default function App() {
               </>
             )}
 
-            {/* ═══ Formatter Tab ═══ */}
-            {tab === "format" && (
-              <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="font-semibold text-sm text-gray-800 dark:text-zinc-200">Formatted Output</div>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-medium">Paste-ready</span>
-                </div>
-                <div className="p-4 rounded-xl bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 min-h-[200px] whitespace-pre-wrap break-words text-[14px] leading-6 text-gray-900 dark:text-zinc-100">
-                  {unicode || <span className="text-gray-400 dark:text-zinc-500">Your formatted text appears here…</span>}
-                </div>
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  {[
-                    [unicode.length, "chars"],
-                    [unicode.trim() ? unicode.trim().split(/\s+/).length : 0, "words"],
-                    [unicode.split("\n").length, "lines"],
-                  ].map(([val, label]) => (
-                    <div key={label} className="p-2.5 rounded-xl bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-center">
-                      <div className="font-bold text-sm text-gray-900 dark:text-zinc-100">{val}</div>
-                      <div className="text-[11px] text-gray-400 dark:text-zinc-500">{label}</div>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={copyUnicode}
-                  className="mt-4 w-full py-3 rounded-xl bg-[#0A66C2] text-white font-semibold text-sm hover:bg-[#004182] active:scale-[0.98] transition">
-                  {copied ? "✓ Copied!" : "📋 Copy for LinkedIn"}
-                </button>
-                <div className="mt-2 text-[11px] text-gray-400 dark:text-zinc-500 text-center">Formatting survives paste on LinkedIn</div>
-              </div>
-            )}
-
             {/* ═══ Image Card Tab ═══ */}
             {tab === "card" && (
               <div className="space-y-4">
@@ -574,16 +543,6 @@ export default function App() {
               </div>
             )}
 
-            {/* ═══ Bottom bar ═══ */}
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm p-4 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#0A66C2] grid place-items-center text-white text-xs shrink-0">✦</div>
-              <div className="text-xs min-w-0">
-                <div className="font-semibold text-gray-800 dark:text-zinc-200">Free & open source</div>
-                <div className="text-gray-500 dark:text-zinc-400">No account. No tracking. Your content stays in your browser.</div>
-              </div>
-              <a href="https://github.com/SatyaDileep/Content-Crafting-Wand-For-LinkedIn" target="_blank"
-                className="ml-auto shrink-0 hidden sm:inline-flex text-xs font-semibold px-4 py-2 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-90 transition">Star on GitHub</a>
-            </div>
           </div>
         </main>
 
