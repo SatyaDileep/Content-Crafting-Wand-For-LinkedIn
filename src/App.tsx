@@ -137,11 +137,32 @@ export default function App() {
     if (!ref?.current) { alert("Nothing to export on this tab."); return }
     setExporting(true)
     try {
-      const dataUrl = await toPng(ref.current, { cacheBust: true, pixelRatio: 2 })
+      // Convert cross-origin images to data URLs so html-to-image can render them
+      const imgs = ref.current.querySelectorAll("img")
+      await Promise.all(Array.from(imgs).map(async (img) => {
+        if (img.crossOrigin === "anonymous" && img.src.startsWith("http")) {
+          try {
+            const res = await fetch(img.src, { mode: "cors" })
+            const blob = await res.blob()
+            const dataUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader()
+              reader.onloadend = () => resolve(reader.result as string)
+              reader.readAsDataURL(blob)
+            })
+            img.src = dataUrl
+          } catch { /* leave src as-is, toPng may still work */ }
+        }
+      }))
+      const dataUrl = await toPng(ref.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        skipAutoScale: true,
+        style: { transform: "none" },
+      })
       const a = document.createElement("a"); a.download = "linkedin-card.png"; a.href = dataUrl; a.click()
     } catch (e: any) {
       console.error("Export failed:", e)
-      alert("Export failed. Try a different browser or check console.")
+      alert("Export failed — check console for details.")
     } finally {
       setExporting(false)
     }
@@ -215,7 +236,7 @@ export default function App() {
         </header>
 
         {/* ══════ Main ══════ */}
-        <main className="max-w-[1280px] mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
+        <main className={`max-w-[1280px] mx-auto px-4 py-6 grid gap-6 ${tab === "card" ? "grid-cols-1 lg:grid-cols-[340px_340px_1fr]" : "grid-cols-1 lg:grid-cols-[380px_1fr]"}`}>
 
           {/* ── Left: Editor ── */}
           <div className="space-y-4 lg:sticky lg:top-[140px] h-fit">
@@ -296,32 +317,93 @@ export default function App() {
               </div>
             </div>
 
-            {/* Profile card */}
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm p-4">
-              <div className="font-semibold text-sm text-gray-800 dark:text-zinc-200 mb-3">Profile</div>
-              <div className="grid gap-2.5">
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" className={inputCls} />
-                <input value={headline} onChange={e => setHeadline(e.target.value)} placeholder="Your headline" className={inputCls} />
-                <input value={avatar} onChange={e => setAvatar(e.target.value)} placeholder="Avatar URL" className={inputCls} />
-                <input value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)} placeholder="LinkedIn profile URL" className={inputCls} />
+            {/* Profile card — only on preview tab */}
+            {tab === "preview" && (
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm p-4">
+                <div className="font-semibold text-sm text-gray-800 dark:text-zinc-200 mb-3">Profile</div>
+                <div className="grid gap-2.5">
+                  <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" className={inputCls} />
+                  <input value={headline} onChange={e => setHeadline(e.target.value)} placeholder="Your headline" className={inputCls} />
+                  <input value={avatar} onChange={e => setAvatar(e.target.value)} placeholder="Avatar URL" className={inputCls} />
+                  <input value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)} placeholder="LinkedIn profile URL" className={inputCls} />
+                </div>
               </div>
-            </div>
+            )}
+          </div>
 
-
-
-            {/* Bottom info */}
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#0A66C2] grid place-items-center text-white text-sm shrink-0 mt-0.5">✦</div>
-                <div>
-                  <div className="text-sm font-semibold text-gray-800 dark:text-zinc-200">Write better. Post with confidence.</div>
-                  <div className="text-xs text-gray-500 dark:text-zinc-400 mt-1 leading-relaxed">Preview your post exactly as readers see it. One click to copy formatting that LinkedIn keeps.</div>
-                  <a href="https://github.com/SatyaDileep/Content-Crafting-Wand-For-LinkedIn" target="_blank"
-                    className="inline-flex text-xs font-semibold text-[#0A66C2] hover:underline mt-2">View on GitHub →</a>
+          {/* ── Middle: Card Styling (card tab only) ── */}
+          {tab === "card" && (
+            <div className="space-y-4 lg:sticky lg:top-[140px] h-fit">
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+                <div className="flex border-b border-gray-100 dark:border-zinc-800">
+                  {(["edit", "style"] as const).map(st => (
+                    <button key={st} onClick={() => setCardSubTab(st)}
+                      className={`flex-1 py-2.5 text-xs font-semibold transition ${cardSubTab === st
+                        ? "text-[#0A66C2] border-b-2 border-[#0A66C2]"
+                        : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-300"
+                      }`}>
+                      {st === "edit" ? "✏️ Edit" : "🎨 Style"}
+                    </button>
+                  ))}
+                </div>
+                <div className="p-4">
+                  {cardSubTab === "edit" && (
+                    <div className="grid gap-2.5">
+                      <input value={cardHeader} onChange={e => setCardHeader(e.target.value)} placeholder="Series header (e.g. AI-Byte #24)" className={inputCls} />
+                      <input value={cardTitle} onChange={e => setCardTitle(e.target.value)} placeholder="Card title" className={inputCls} />
+                      <input value={thought} onChange={e => setThought(e.target.value)} placeholder="Highlighted thought (optional)" className={inputCls} />
+                      <div className="flex gap-2 pt-1">
+                        <button disabled={!!aiLoading} onClick={() => callCardAi("generateThought")}
+                          className="flex-1 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-xs font-medium bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-40 transition">
+                          {aiLoading === "generateThought" ? "…" : "✨ Generate Thought"}
+                        </button>
+                        <button disabled={!!aiLoading} onClick={() => callCardAi("generateTitleHeader")}
+                          className="flex-1 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-xs font-medium bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-40 transition">
+                          {aiLoading === "generateTitleHeader" ? "…" : "🤖 Auto Title"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {cardSubTab === "style" && (
+                    <div className="grid gap-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs text-gray-500 dark:text-zinc-400">Width</span>
+                          <span className="text-xs text-gray-400 dark:text-zinc-500 tabular-nums">{cardWidth}px</span>
+                        </div>
+                        <input type="range" min="300" max="700" value={cardWidth} onChange={e => setCardWidth(Number(e.target.value))} className="w-full" />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs text-gray-500 dark:text-zinc-400">Text color</span>
+                          <button onClick={() => setTextColor(gradient.text)} className="text-[10px] px-2 py-0.5 rounded-full border border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 transition">reset</button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} className="w-8 h-8 rounded-lg border border-gray-200 dark:border-zinc-700 cursor-pointer bg-transparent p-0.5" />
+                          <span className="text-xs text-gray-400 dark:text-zinc-500 font-mono">{textColor}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500 dark:text-zinc-400 mb-1.5">Theme</div>
+                        <div className="grid grid-cols-6 gap-1.5">
+                          {GRADIENTS.map(g => (
+                            <button key={g.id} onClick={() => { setGradient(g); setTextColor(g.text) }}
+                              className={`relative w-full aspect-square rounded-lg border-2 transition-all duration-150 hover:scale-110 ${gradient.id === g.id
+                                ? "border-gray-900 dark:border-white shadow-lg scale-110 ring-2 ring-[#0A66C2]"
+                                : "border-transparent hover:border-gray-300 dark:hover:border-zinc-600"
+                              }`}
+                              style={{ background: g.bg }} title={g.id}>
+                              {gradient.id === g.id && <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold drop-shadow">✓</span>}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* ── Right: Tab Content ── */}
           <div className="space-y-4">
@@ -359,7 +441,7 @@ export default function App() {
                   <div ref={feedRef} className="rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-sm bg-white dark:bg-zinc-900">
                     {/* Post header */}
                     <div className="p-3 flex gap-3">
-                      <img src={avatar} onError={e => (e.currentTarget.src = "https://i.pravatar.cc/200")} alt="avatar" className="w-12 h-12 rounded-full object-cover shrink-0" />
+                      <img src={avatar} crossOrigin="anonymous" onError={e => (e.currentTarget.src = "https://i.pravatar.cc/200")} alt="avatar" className="w-12 h-12 rounded-full object-cover shrink-0" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -468,7 +550,7 @@ export default function App() {
                     {/* Glass footer */}
                     <div className="px-6 py-4 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.05)", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
                       <div className="flex items-center gap-3">
-                        <img src={avatar} alt="" className="w-10 h-10 rounded-full object-cover" style={{ border: `2px solid ${textColor}` }} />
+                        <img src={avatar} crossOrigin="anonymous" alt="" className="w-10 h-10 rounded-full object-cover" style={{ border: `2px solid ${textColor}` }} />
                         <div>
                           <div className="font-semibold text-sm leading-none" style={{ color: textColor }}>{name}</div>
                           <div className="text-xs mt-1" style={{ color: textColor, opacity: 0.8 }}>{headline}</div>
@@ -482,78 +564,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Card sub-tabs: Edit / Style */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-                  <div className="flex border-b border-gray-100 dark:border-zinc-800">
-                    {(["edit", "style"] as const).map(st => (
-                      <button key={st} onClick={() => setCardSubTab(st)}
-                        className={`flex-1 py-2.5 text-xs font-semibold transition ${cardSubTab === st
-                          ? "text-[#0A66C2] border-b-2 border-[#0A66C2]"
-                          : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-300"
-                        }`}>
-                        {st === "edit" ? "✏️ Edit" : "🎨 Style"}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="p-4">
-                    {cardSubTab === "edit" && (
-                      <div className="grid gap-2.5">
-                        <input value={cardHeader} onChange={e => setCardHeader(e.target.value)} placeholder="Series header (e.g. AI-Byte #24)" className={inputCls} />
-                        <input value={cardTitle} onChange={e => setCardTitle(e.target.value)} placeholder="Card title" className={inputCls} />
-                        <input value={thought} onChange={e => setThought(e.target.value)} placeholder="Highlighted thought (optional)" className={inputCls} />
-                        <div className="flex gap-2 pt-1">
-                          <button disabled={!!aiLoading} onClick={() => callCardAi("generateThought")}
-                            className="flex-1 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-xs font-medium bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-40 transition">
-                            {aiLoading === "generateThought" ? "…" : "✨ Generate Thought"}
-                          </button>
-                          <button disabled={!!aiLoading} onClick={() => callCardAi("generateTitleHeader")}
-                            className="flex-1 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-xs font-medium bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-40 transition">
-                            {aiLoading === "generateTitleHeader" ? "…" : "🤖 Auto Title"}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    {cardSubTab === "style" && (
-                      <div className="grid gap-3">
-                        {/* Card width */}
-                        <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs text-gray-500 dark:text-zinc-400">Width</span>
-                            <span className="text-xs text-gray-400 dark:text-zinc-500 tabular-nums">{cardWidth}px</span>
-                          </div>
-                          <input type="range" min="300" max="700" value={cardWidth} onChange={e => setCardWidth(Number(e.target.value))} className="w-full" />
-                        </div>
-                        {/* Text color */}
-                        <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs text-gray-500 dark:text-zinc-400">Text color</span>
-                            <button onClick={() => setTextColor(gradient.text)} className="text-[10px] px-2 py-0.5 rounded-full border border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 transition">reset</button>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} className="w-8 h-8 rounded-lg border border-gray-200 dark:border-zinc-700 cursor-pointer bg-transparent p-0.5" />
-                            <span className="text-xs text-gray-400 dark:text-zinc-500 font-mono">{textColor}</span>
-                          </div>
-                        </div>
-                        {/* Gradient themes */}
-                        <div>
-                          <div className="text-xs text-gray-500 dark:text-zinc-400 mb-1.5">Theme</div>
-                          <div className="grid grid-cols-6 gap-1.5">
-                            {GRADIENTS.map(g => (
-                              <button key={g.id} onClick={() => { setGradient(g); setTextColor(g.text) }}
-                                className={`relative w-full aspect-square rounded-lg border-2 transition-all duration-150 hover:scale-110 ${gradient.id === g.id
-                                  ? "border-gray-900 dark:border-white shadow-lg scale-110 ring-2 ring-[#0A66C2]"
-                                  : "border-transparent hover:border-gray-300 dark:hover:border-zinc-600"
-                                }`}
-                                style={{ background: g.bg }} title={g.id}>
-                                {gradient.id === g.id && <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold drop-shadow">✓</span>}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+
               </div>
             )}
 
