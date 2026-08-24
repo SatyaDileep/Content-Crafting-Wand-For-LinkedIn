@@ -66,6 +66,7 @@ export default function App() {
   const { apiKey } = useAuth()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [tab, setTab] = useState<"preview" | "card">("preview")
+  const [cardSubTab, setCardSubTab] = useState<"edit" | "style">("edit")
   const [device, setDevice] = useState<"mobile" | "tablet" | "desktop">("desktop")
   const [dark, setDark] = useTheme()
   const [showFold, setShowFold] = useState(true)
@@ -181,7 +182,7 @@ export default function App() {
                 <div className="font-bold text-sm leading-tight">Content Crafter</div>
                 <div className="text-[11px] text-gray-400 dark:text-zinc-500 leading-tight">LinkedIn Post Studio</div>
               </div>
-              <span className="hidden md:inline-flex text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700 font-medium">Free</span>
+
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => setSettingsOpen(true)}
@@ -306,67 +307,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Card settings — only when Card tab active */}
-            {tab === "card" && (
-              <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm p-4">
-                <div className="font-semibold text-sm text-gray-800 dark:text-zinc-200 mb-3">Card Settings</div>
-                <div className="grid gap-2.5">
-                  <input value={cardHeader} onChange={e => setCardHeader(e.target.value)} placeholder="Series header (e.g. AI-Byte #24)" className={inputCls} />
-                  <input value={cardTitle} onChange={e => setCardTitle(e.target.value)} placeholder="Card title" className={inputCls} />
-                  <input value={thought} onChange={e => setThought(e.target.value)} placeholder="Highlighted thought (optional)" className={inputCls} />
 
-                  {/* Card width */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs text-gray-500 dark:text-zinc-400">Width</span>
-                      <span className="text-xs text-gray-400 dark:text-zinc-500 tabular-nums">{cardWidth}px</span>
-                    </div>
-                    <input type="range" min="300" max="700" value={cardWidth} onChange={e => setCardWidth(Number(e.target.value))} className="w-full" />
-                  </div>
-
-                  {/* Text color */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs text-gray-500 dark:text-zinc-400">Text color</span>
-                      <button onClick={() => setTextColor(gradient.text)} className="text-[10px] px-2 py-0.5 rounded-full border border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 transition">reset</button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} className="w-8 h-8 rounded-lg border border-gray-200 dark:border-zinc-700 cursor-pointer bg-transparent p-0.5" />
-                      <span className="text-xs text-gray-400 dark:text-zinc-500 font-mono">{textColor}</span>
-                    </div>
-                  </div>
-
-                  {/* Gradient themes */}
-                  <div>
-                    <div className="text-xs text-gray-500 dark:text-zinc-400 mb-1.5">Theme</div>
-                    <div className="grid grid-cols-6 gap-1.5">
-                      {GRADIENTS.map(g => (
-                        <button key={g.id} onClick={() => { setGradient(g); setTextColor(g.text) }}
-                          className={`relative w-full aspect-square rounded-lg border-2 transition-all duration-150 hover:scale-110 ${gradient.id === g.id
-                            ? "border-gray-900 dark:border-white shadow-lg scale-110 ring-2 ring-[#0A66C2]"
-                            : "border-transparent hover:border-gray-300 dark:hover:border-zinc-600"
-                          }`}
-                          style={{ background: g.bg }} title={g.id}>
-                          {gradient.id === g.id && <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold drop-shadow">✓</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* AI card actions */}
-                  <div className="flex gap-2 pt-1">
-                    <button disabled={!!aiLoading} onClick={() => callCardAi("generateThought")}
-                      className="flex-1 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-xs font-medium bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-40 transition">
-                      {aiLoading === "generateThought" ? "…" : "✨ Generate Thought"}
-                    </button>
-                    <button disabled={!!aiLoading} onClick={() => callCardAi("generateTitleHeader")}
-                      className="flex-1 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-xs font-medium bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-40 transition">
-                      {aiLoading === "generateTitleHeader" ? "…" : "🤖 Auto Title"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Bottom info */}
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm p-4">
@@ -538,6 +479,79 @@ export default function App() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" /></svg>
                       </a>
                     </div>
+                  </div>
+                </div>
+
+                {/* Card sub-tabs: Edit / Style */}
+                <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+                  <div className="flex border-b border-gray-100 dark:border-zinc-800">
+                    {(["edit", "style"] as const).map(st => (
+                      <button key={st} onClick={() => setCardSubTab(st)}
+                        className={`flex-1 py-2.5 text-xs font-semibold transition ${cardSubTab === st
+                          ? "text-[#0A66C2] border-b-2 border-[#0A66C2]"
+                          : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-300"
+                        }`}>
+                        {st === "edit" ? "✏️ Edit" : "🎨 Style"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="p-4">
+                    {cardSubTab === "edit" && (
+                      <div className="grid gap-2.5">
+                        <input value={cardHeader} onChange={e => setCardHeader(e.target.value)} placeholder="Series header (e.g. AI-Byte #24)" className={inputCls} />
+                        <input value={cardTitle} onChange={e => setCardTitle(e.target.value)} placeholder="Card title" className={inputCls} />
+                        <input value={thought} onChange={e => setThought(e.target.value)} placeholder="Highlighted thought (optional)" className={inputCls} />
+                        <div className="flex gap-2 pt-1">
+                          <button disabled={!!aiLoading} onClick={() => callCardAi("generateThought")}
+                            className="flex-1 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-xs font-medium bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-40 transition">
+                            {aiLoading === "generateThought" ? "…" : "✨ Generate Thought"}
+                          </button>
+                          <button disabled={!!aiLoading} onClick={() => callCardAi("generateTitleHeader")}
+                            className="flex-1 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-xs font-medium bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-40 transition">
+                            {aiLoading === "generateTitleHeader" ? "…" : "🤖 Auto Title"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {cardSubTab === "style" && (
+                      <div className="grid gap-3">
+                        {/* Card width */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs text-gray-500 dark:text-zinc-400">Width</span>
+                            <span className="text-xs text-gray-400 dark:text-zinc-500 tabular-nums">{cardWidth}px</span>
+                          </div>
+                          <input type="range" min="300" max="700" value={cardWidth} onChange={e => setCardWidth(Number(e.target.value))} className="w-full" />
+                        </div>
+                        {/* Text color */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs text-gray-500 dark:text-zinc-400">Text color</span>
+                            <button onClick={() => setTextColor(gradient.text)} className="text-[10px] px-2 py-0.5 rounded-full border border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 transition">reset</button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} className="w-8 h-8 rounded-lg border border-gray-200 dark:border-zinc-700 cursor-pointer bg-transparent p-0.5" />
+                            <span className="text-xs text-gray-400 dark:text-zinc-500 font-mono">{textColor}</span>
+                          </div>
+                        </div>
+                        {/* Gradient themes */}
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-zinc-400 mb-1.5">Theme</div>
+                          <div className="grid grid-cols-6 gap-1.5">
+                            {GRADIENTS.map(g => (
+                              <button key={g.id} onClick={() => { setGradient(g); setTextColor(g.text) }}
+                                className={`relative w-full aspect-square rounded-lg border-2 transition-all duration-150 hover:scale-110 ${gradient.id === g.id
+                                  ? "border-gray-900 dark:border-white shadow-lg scale-110 ring-2 ring-[#0A66C2]"
+                                  : "border-transparent hover:border-gray-300 dark:hover:border-zinc-600"
+                                }`}
+                                style={{ background: g.bg }} title={g.id}>
+                                {gradient.id === g.id && <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold drop-shadow">✓</span>}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
