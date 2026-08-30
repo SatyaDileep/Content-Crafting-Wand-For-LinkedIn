@@ -33,7 +33,7 @@ Type in Markdown (`**bold**`, `*italic*`, `~~strikethrough~~`). Content Crafter 
 Choose from **17 curated gradient themes**, add a highlighted thought, customize width and colors, then **export a retina-quality PNG** — perfect for carousel posts, standalone announcements, or sharing on other platforms.
 
 ### 🤖 AI Writing Assistant — Your Ghostwriter, Your Key
-Optional Gemini AI integration (BYO API key — free tier works). Improve your draft, add emojis, shift tone to professional, or auto-generate a full post from an idea. **Your API key stays in your browser.** We never see it.
+Optional AI integration (BYO API key — free tier works). Improve your draft, add emojis, shift tone to professional, or auto-generate a full post from an idea. **Your API key stays in your browser.** We never see it. Pick your provider in Settings — **Gemini**, **Groq**, or **any OpenAI-compatible endpoint** (OpenRouter, Together, a local LLM, etc.). Switch anytime; the UI shows which provider powered each result.
 
 ---
 
@@ -68,11 +68,11 @@ npm run preview # preview the build locally
 
 ### Optional: Enable AI Features
 
-1. Get a free Gemini API key at [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
-2. Open the app → Settings → paste your key
-3. Done. The AI buttons in the editor and card tabs now work.
+1. Open the app → **Settings → AI Provider**.
+2. Choose a provider: **Gemini** ([aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)), **Groq** ([console.groq.com/keys](https://console.groq.com/keys)), or **Custom** (any OpenAI-compatible base URL — OpenRouter, Together, local LLMs, etc.).
+3. Paste your API key and pick a model. Done — the AI buttons now work.
 
-> Your key is stored in your browser's `localStorage` and sent directly to Google. It never touches our servers.
+> Your key is stored in your browser's `localStorage` and sent directly to your chosen provider. It never touches our servers.
 
 ### Optional: Google Sign-In
 
@@ -93,6 +93,24 @@ Set `VITE_GOOGLE_CLIENT_ID` in your `.env` to enable optional Google Sign-In for
 5. Deploy. Done.
 
 Also works on Vercel, Cloudflare Pages, GitHub Pages, or any static host. The `netlify.toml` is preconfigured with SPA redirects.
+
+---
+
+## Deploy Free to Vercel (Hobby)
+
+100% client-side, so it costs **$0** on Vercel's free Hobby tier — no backend, no serverless functions.
+
+1. Push this repo to your GitHub.
+2. Go to [vercel.com](https://vercel.com) → **Add New → Project** → import the repo.
+3. Vercel auto-detects Vite. If needed, set:
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+4. **Optional** — for Google Sign-In, add an Environment Variable in Vercel:
+   - `VITE_GOOGLE_CLIENT_ID` = your OAuth client ID
+   - (The Gemini API key is entered by *users* in the app — no env var needed.)
+5. Click **Deploy**. `vercel.json` handles the SPA rewrite so every route serves `index.html`.
+
+Done. Your app is live on a `*.vercel.app` URL, auto-redeploying on every `git push`.
 
 ---
 

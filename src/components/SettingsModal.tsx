@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react"
 import { useAuth } from "../lib/auth"
+import { GEMINI_MODELS, GROQ_MODELS, PROVIDER_LABELS, DEFAULT_OPENAI_BASE, type AIProviderType } from "../lib/gemini"
 
 declare global { interface Window { google?: any } }
 
 const inputCls = "mt-2 w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-[#0A66C2] focus:border-transparent transition placeholder:text-gray-400 dark:placeholder:text-zinc-500"
 
 export default function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { user, setUser, apiKey, setApiKey, googleClientId, signOut } = useAuth()
+  const { user, setUser, aiProvider, setAiProvider, aiKey, setAiKey, aiModel, setAiModel, aiBase, setAiBase, googleClientId, signOut } = useAuth()
   const btnRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -34,47 +35,78 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
 
         <div className="mt-4 space-y-4">
           <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 text-xs leading-5 text-emerald-800 dark:text-emerald-300">
-            <b>Your data stays on your device.</b> Nothing is sent to any server. AI features use your own Gemini key, sent directly from your browser to Google. Remove anytime.
+            <b>Your data stays on your device.</b> Nothing is sent to any server. AI features use your own key, sent straight from your browser to the provider you choose. Remove anytime.
           </div>
 
-          <div>
-            <div className="text-sm font-semibold text-gray-800 dark:text-zinc-200">Google Sign-In (optional)</div>
-            <div className="text-xs text-gray-500 dark:text-zinc-400 mt-1">Sign in for AI features. Only your name and photo are stored locally on your device.</div>
-            <div className="mt-3">
-              {user ? (
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
-                  <img src={user.picture} alt="" className="w-9 h-9 rounded-full" />
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-gray-900 dark:text-zinc-100">{user.name}</div>
-                    <div className="text-xs text-gray-500 dark:text-zinc-400">{user.email}</div>
+          {(googleClientId || user) && (
+            <div>
+              <div className="text-sm font-semibold text-gray-800 dark:text-zinc-200">Google Sign-In (optional)</div>
+              <div className="text-xs text-gray-500 dark:text-zinc-400 mt-1">Sign in for AI features. Only your name and photo are stored locally on your device.</div>
+              <div className="mt-3">
+                {user ? (
+                  <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
+                    <img src={user.picture} alt="" className="w-9 h-9 rounded-full" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-zinc-100">{user.name}</div>
+                      <div className="text-xs text-gray-500 dark:text-zinc-400">{user.email}</div>
+                    </div>
+                    <button onClick={signOut} className="ml-auto text-xs px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700 transition">Sign out</button>
                   </div>
-                  <button onClick={signOut} className="ml-auto text-xs px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700 transition">Sign out</button>
-                </div>
-              ) : googleClientId ? (
-                <div ref={btnRef} />
+                ) : (
+                  <div ref={btnRef} />
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-950/40 p-3 space-y-3">
+            <div>
+              <div className="text-sm font-semibold text-gray-800 dark:text-zinc-200">AI Provider</div>
+              <div className="text-xs text-gray-500 dark:text-zinc-400 mt-1">Pick any provider. Keys stay in your browser only.</div>
+              <select value={aiProvider} onChange={e => setAiProvider(e.target.value as AIProviderType)} className={`${inputCls} cursor-pointer`}>
+                {(Object.keys(PROVIDER_LABELS) as AIProviderType[]).map(p => (
+                  <option key={p} value={p}>{PROVIDER_LABELS[p]}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <div className="text-xs font-medium text-gray-600 dark:text-zinc-300">API Key</div>
+              <input value={aiKey} onChange={e => setAiKey(e.target.value)} placeholder={aiProvider === "gemini" ? "AIza..." : aiProvider === "groq" ? "gsk_..." : "sk-..."} type="password" className={inputCls} />
+            </div>
+
+            <div>
+              <div className="text-xs font-medium text-gray-600 dark:text-zinc-300">Model</div>
+              {aiProvider === "gemini" ? (
+                <select value={aiModel} onChange={e => setAiModel(e.target.value)} className={`${inputCls} cursor-pointer`}>
+                  {GEMINI_MODELS.map(m => (<option key={m.id} value={m.id}>{m.label}</option>))}
+                </select>
+              ) : aiProvider === "groq" ? (
+                <select value={aiModel} onChange={e => setAiModel(e.target.value)} className={`${inputCls} cursor-pointer`}>
+                  {GROQ_MODELS.map(m => (<option key={m.id} value={m.id}>{m.label}</option>))}
+                </select>
               ) : (
-                <div className="text-xs p-3 rounded-xl border border-dashed border-gray-300 dark:border-zinc-600 text-gray-500 dark:text-zinc-400">
-                  Set <code className="px-1 py-0.5 rounded bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300">VITE_GOOGLE_CLIENT_ID</code> in <code className="px-1 py-0.5 rounded bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300">.env</code> to enable Google Sign-In. Or skip — AI works with just the API key below.
-                </div>
+                <input value={aiModel} onChange={e => setAiModel(e.target.value)} placeholder="e.g. gpt-4o-mini" className={inputCls} />
               )}
             </div>
-          </div>
 
-          <div>
-            <div className="text-sm font-semibold text-gray-800 dark:text-zinc-200">Gemini API Key</div>
-            <div className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
-              Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" className="underline text-[#0A66C2] hover:text-[#004182]">aistudio.google.com/app/apikey</a> · Stored in your browser only
-            </div>
-            <input value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="AIza..." type="password" className={inputCls} />
-            <div className="mt-2 flex gap-2">
-              <button onClick={() => setApiKey("")} className="text-xs px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition">Clear</button>
-              <span className="text-[11px] text-gray-500 dark:text-zinc-400 self-center">{apiKey ? "✓ Saved" : "Not set"}</span>
+            {aiProvider === "openai" && (
+              <div>
+                <div className="text-xs font-medium text-gray-600 dark:text-zinc-300">Base URL</div>
+                <input value={aiBase} onChange={e => setAiBase(e.target.value)} placeholder={DEFAULT_OPENAI_BASE} className={inputCls} />
+                <div className="text-[11px] text-gray-500 dark:text-zinc-400 mt-1">OpenAI-compatible endpoint (OpenRouter, Together, local LLMs, etc.).</div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-1">
+              <button onClick={() => { setAiKey(""); setAiBase("") }} className="text-xs px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition">Clear</button>
+              <span className="text-[11px] text-gray-500 dark:text-zinc-400">{aiKey ? `✓ ${PROVIDER_LABELS[aiProvider]} ready` : "Not set"}</span>
             </div>
           </div>
 
           <div className="flex gap-2 pt-2">
             <button onClick={onClose} className="flex-1 py-2.5 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-semibold hover:opacity-90 transition">Done</button>
-            <a href="https://ai.google.dev/gemini-api/docs" target="_blank" className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-zinc-700 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">Docs</a>
+            <span className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-zinc-700 text-sm text-gray-400 dark:text-zinc-500">Keys never leave this browser</span>
           </div>
         </div>
       </div>
