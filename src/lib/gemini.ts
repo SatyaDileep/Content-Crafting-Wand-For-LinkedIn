@@ -1,4 +1,4 @@
-export type GeminiAction = "improve" | "emojis" | "professional" | "generate" | "hashtags" | "generateThought" | "generateTitleHeader"
+export type GeminiAction = "improve" | "emojis" | "professional" | "hashtags" | "generateThought" | "generateTitleHeader"
 
 export type AIProviderType = "gemini" | "groq" | "openai"
 
@@ -28,13 +28,17 @@ export const PROVIDER_LABELS: Record<AIProviderType, string> = {
 }
 
 const PROMPTS: Record<GeminiAction, (text: string)=>string> = {
-  improve: t => `You are a LinkedIn ghostwriter. Sharpen this post: pull the hook into the first line, boost clarity and engagement, keep markdown **bold** and bullets. Keep it under 180 words and end with 3 relevant hashtags on their own lines. Return only the improved post:\n\n${t}`,
-  emojis: t => `Add 4-6 relevant emojis to this LinkedIn post naturally — one in the opening line, a few sprinkled through, none in hashtags. Keep markdown. Return only the post:\n\n${t}`,
-  professional: t => `Rewrite this LinkedIn post in a crisp, professional, executive tone that still sounds human. Keep markdown formatting. Return only the post:\n\n${t}`,
-  generate: t => `Generate a viral LinkedIn post from this idea. Open with a power hook that lands within the first 210 characters, follow with a 3-5 line story, 3 bullet takeaways, and end with a question CTA plus 5 high-impression hashtags on their own lines. Use markdown **bold** sparingly. Idea: ${t || "Share a lesson about building in public"}`,
-  hashtags: t => `You are a LinkedIn growth expert. Recommend 6-8 popular, high-impression hashtags for this post to boost reach. Mix broad categories (like #Productivity, #CareerAdvice) with niche, lower-competition ones (like #BuildInPublic). Return ONLY the hashtags, space-separated, with no numbers or extra commentary:\n\n${t}`,
+  improve: t => `You are a LinkedIn ghostwriter. Sharpen this post: stronger hook in the first 2 lines, clearer value, human voice. Keep under 180 words and keep markdown **bold** where it helps.\n\nSTRICT FORMATTING — follow exactly:\n- 3 to 5 paragraphs max. ONE blank line between paragraphs. NEVER a blank line between sentences in the same paragraph.\n- Bullet items starting with "• " stay tight — NO blank lines between bullets.\n- Hashtags (if any) on ONE line at the very end. No trailing blank lines.\n- Return ONLY the post, nothing else.\n\nPost:\n\n${t}`,
+  emojis: t => `Add emojis to this LinkedIn post. Insert 6-10 relevant emojis total — one in the hook, 1-2 per paragraph, lightly inside bullet lines. Do NOT add emojis inside hashtags. PRESERVE every word/sentence — do NOT truncate, shorten or drop trailing lines/hashtags.\n\nSTRICT FORMATTING:\n- Keep exact paragraph count. ONE blank line between paragraphs, NO extra blank lines anywhere.\n- Bullet lines ("• ") stay consecutive with NO blank lines between them.\n- Do NOT add line breaks inside a paragraph.\n- Keep markdown **bold**. Return ONLY the full post with emojis, complete and uncut.\n\nPost:\n\n${t}`,
+  professional: t => `Rewrite this LinkedIn post in a crisp, professional executive tone that still sounds human. Keep markdown **bold**.\n\nSTRICT FORMATTING:\n- 3 to 5 paragraphs max. ONE blank line between paragraphs. No blank line between sentences in same paragraph.\n- Bullet items ("• ") tight, no blank lines between bullets.\n- No trailing blank lines. Return ONLY the post.\n\nPost:\n\n${t}`,
+  hashtags: t => `You are a LinkedIn growth expert. For the post below, recommend 5-7 high-impression hashtags that best match its topic to boost discovery. Mix 2-3 broad, high-volume tags with 3-4 niche, lower-competition ones. IMPORTANT: Return ONLY the hashtags on ONE single line, space-separated (e.g. "#AI #ProductManagement #BuildInPublic #Leadership"), no numbering, no bullets, no newlines, no extra commentary:\n\n${t}`,
   generateThought: t => `Based on the following LinkedIn post content, generate a short, insightful, and concise "highlighted thought" that stands out as a pull quote. Maximum 3 lines. Include 1-2 relevant emojis. Return ONLY the thought text, nothing else:\n\n${t}`,
   generateTitleHeader: t => `Based on the following post content, generate a short catchy card title and a concise series header (like "AI-Byte Series #Day24"). Format the response EXACTLY as: Title | Header. Return nothing else:\n\n${t}`,
+}
+
+export function buildCustomImprovePrompt(text: string, instruction: string): string {
+  const instr = instruction.trim() || "Sharpen this post for LinkedIn"
+  return `You are a LinkedIn ghostwriter. User wants: "${instr}". Apply that to the post below. Keep markdown **bold** and bullets. Keep under 180 words.\n\nSTRICT FORMATTING:\n- 3 to 5 paragraphs max. ONE blank line between paragraphs. NEVER blank line between sentences in same paragraph.\n- Bullet items ("• ") tight — NO blank lines between bullets. No trailing blank lines. Return ONLY the post.\n\nPost:\n\n${text}`
 }
 
 async function generateWithGemini(prompt: string, apiKey: string, model: string): Promise<string> {
@@ -42,7 +46,7 @@ async function generateWithGemini(prompt: string, apiKey: string, model: string)
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type":"application/json" },
-    body: JSON.stringify({ contents:[{ parts:[{ text: prompt }] }], generationConfig:{ temperature:0.7, maxOutputTokens: 1200 } })
+    body: JSON.stringify({ contents:[{ parts:[{ text: prompt }] }], generationConfig:{ temperature:0.7, maxOutputTokens: 1800 } })
   })
   if(!res.ok){
     let detail = ""
@@ -65,7 +69,7 @@ async function generateWithOpenAI(prompt: string, apiKey: string, model: string,
       model,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
-      max_tokens: 1200,
+      max_tokens: 1800,
     })
   })
   if(!res.ok){
@@ -94,14 +98,15 @@ export type AISettings = {
  */
 export async function callAI(action: GeminiAction, text: string, settings: AISettings): Promise<AIResult> {
   const prompt = PROMPTS[action](text)
-  if(!settings.apiKey) throw new Error("Add your AI API key in Settings.")
+  return callAIWithPrompt(prompt, settings)
+}
 
+export async function callAIWithPrompt(prompt: string, settings: AISettings): Promise<AIResult> {
+  if(!settings.apiKey) throw new Error("Add your AI API key in Settings.")
   if(settings.provider === "gemini"){
     const out = await generateWithGemini(prompt, settings.apiKey, settings.model || DEFAULT_GEMINI_MODEL)
     return { text: out, source: "gemini" }
   }
-
-  // groq + openai use the OpenAI-compatible chat completions API
   const base = settings.provider === "groq"
     ? "https://api.groq.com/openai/v1"
     : (settings.baseUrl || DEFAULT_OPENAI_BASE)

@@ -1,7 +1,7 @@
 import { useRef, useState, useMemo, useEffect } from "react"
 import { toPng } from "html-to-image"
 import { markdownToUnicode, markdownToHtml } from "./lib/unicode"
-import { callAI } from "./lib/gemini"
+import { callAI, PROVIDER_LABELS } from "./lib/gemini"
 import { useAuth } from "./lib/auth"
 import AiBar from "./components/AiBar"
 import SettingsModal from "./components/SettingsModal"
@@ -56,7 +56,6 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [tab, setTab] = useState<"preview" | "card" | "carousel">("preview")
   const [dark, setDark] = useTheme()
-  const [showFold, setShowFold] = useState(true)
   const [expanded, setExpanded] = useState(false)
 
   /* Editor state */
@@ -98,8 +97,10 @@ export default function App() {
   /* UI state */
   const [copied, setCopied] = useState(false)
   const [aiLoading, setAiLoading] = useState<string | null>(null)
+  const [globalAi, setGlobalAi] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [cardTab, setCardTab] = useState<"compose" | "style">("compose")
+  const [editorTab, setEditorTab] = useState<"write" | "profile">("write")
 
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -162,16 +163,18 @@ export default function App() {
     if (!aiKey) { setSettingsOpen(true); return }
     if (!content.trim()) return
     setAiLoading(action)
+    setGlobalAi(action === "generateThought" ? "Crafting thought…" : "Crafting title…")
     try {
-      const { text: result } = await callAI(action, content, { provider: aiProvider, apiKey: aiKey, model: aiModel, baseUrl: aiBase })
-      if (action === "generateThought") setThought(result)
+      const { text: raw } = await callAI(action, content, { provider: aiProvider, apiKey: aiKey, model: aiModel, baseUrl: aiBase })
+      const result = raw.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/\n\n([•\-\*] )/g, "\n$1").trim()
+      if (action === "generateThought") setThought(result.replace(/\n+/g, " ").trim())
       else if (action === "generateTitleHeader") {
-        const parts = result.split("|").map(s => s.trim())
+        const parts = result.replace(/\n+/g, " ").split("|").map(s => s.trim())
         if (parts[0]) setCardTitle(parts[0])
         if (parts[1]) setCardHeader(parts[1])
       }
     } catch (e: any) { alert(e.message || "AI failed") }
-    finally { setAiLoading(null) }
+    finally { setAiLoading(null); setGlobalAi(null) }
   }
 
   /* ── Layout helpers ──────────────────────── */
@@ -207,7 +210,7 @@ export default function App() {
                   ? "bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-300/50 dark:ring-emerald-700/40 hover:border-emerald-300 dark:hover:border-emerald-700"
                   : "bg-[#0A66C2] border-[#0A66C2] text-white shadow-[0_1px_6px_rgba(10,102,194,0.35)] hover:bg-[#004182] hover:border-[#004182]"
                 }`}>
-                {aiKey ? "✓ AI Ready" : "⚙ Enable AI"}
+                {aiKey ? `✓ ${PROVIDER_LABELS[aiProvider]} AI Active` : "⚙ Enable AI"}
               </button>
               <button onClick={() => setDark(!dark)}
                 className="w-8 h-8 grid place-items-center rounded-full border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 transition text-sm">
@@ -262,17 +265,17 @@ export default function App() {
                       <input value={thought} onChange={e => setThought(e.target.value)} placeholder="Pull quote (optional)" className={inputCls} />
                       <div className="flex gap-2">
                         <button disabled={!!aiLoading} onClick={() => callCardAi("generateThought")}
-                          className="flex-1 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-xs font-medium bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-40 transition">
-                          {aiLoading === "generateThought" ? "…" : "✨ Thought"}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-xs font-medium bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-40 transition">
+                          {aiLoading === "generateThought" && <span className="inline-block animate-spin rounded-full border-2 border-current border-t-transparent w-3 h-3" />} {aiLoading === "generateThought" ? "Working…" : "✨ Thought"}
                         </button>
                         <button disabled={!!aiLoading} onClick={() => callCardAi("generateTitleHeader")}
-                          className="flex-1 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-xs font-medium bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-40 transition">
-                          {aiLoading === "generateTitleHeader" ? "…" : "🤖 Title"}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-xs font-medium bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-40 transition">
+                          {aiLoading === "generateTitleHeader" && <span className="inline-block animate-spin rounded-full border-2 border-current border-t-transparent w-3 h-3" />} {aiLoading === "generateTitleHeader" ? "Working…" : "🤖 Title"}
                         </button>
                       </div>
                     </div>
                     <div className="border-y border-gray-200/60 dark:border-zinc-800">
-                      <AiBar text={content} onResult={setContent} />
+                      <AiBar text={content} onResult={setContent} onBusy={setGlobalAi} />
                       <div className="px-3 py-2 flex flex-wrap gap-1 border-y border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
                         {([
                           ["𝐁 Bold", "**", "wrap"],
@@ -346,64 +349,62 @@ export default function App() {
             ) : (
               <>
                 <div className="bg-white/80 dark:bg-zinc-900/70 backdrop-blur-xl rounded-2xl border border-white/60 dark:border-zinc-800 shadow-[0_8px_30px_rgba(15,23,42,0.06)] overflow-hidden">
-                  <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200/60 dark:border-zinc-800">
-                    <span className="font-semibold text-sm text-gray-800 dark:text-zinc-200">Editor</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${content.length > 3000 ? "bg-red-500" : pastFold ? "bg-amber-500" : "bg-emerald-500"}`} />
+                  <div className="px-4 pt-3 pb-2 border-b border-gray-200/60 dark:border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-sm text-gray-800 dark:text-zinc-200">Editor</span>
                       <span className="text-xs text-gray-400 dark:text-zinc-500 tabular-nums">{content.length} / 3000</span>
                     </div>
+                    <div className="mt-2 flex gap-1 p-1 rounded-xl bg-gray-100 dark:bg-zinc-800 border border-gray-200/60 dark:border-zinc-700">
+                      {(["write", "profile"] as const).map(id => (
+                        <button key={id} onClick={() => setEditorTab(id)}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-semibold capitalize transition ${editorTab === id ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-zinc-100 shadow-sm border border-gray-200 dark:border-zinc-600" : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200"}`}>
+                          {id === "write" ? "✎ Post" : "👤 Profile"}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <AiBar text={content} onResult={setContent} />
-                  <div className="px-3 py-2 flex flex-wrap gap-1 border-b border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
-                    {([
-                      ["𝐁 Bold", "**", "wrap"],
-                      ["𝐼 Italic", "*", "wrap"],
-                      ["S̶ Strike", "~~", "wrap"],
-                      ["• Bullet", "• ", "insert"],
-                      ["→ Arrow", " → ", "insert"],
-                      ["# Tag", " #", "insert"],
-                    ] as const).map(([label, text, type]) => (
-                      <button key={label}
-                        onClick={() => type === "wrap" ? insertWrap(text) : insertAtCursor(text)}
-                        className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"
-                        title={type === "wrap" ? `Wrap with ${text}` : "Insert at cursor"}>
-                        {label}
-                      </button>
-                    ))}
-                    <div className="w-px bg-gray-200 dark:bg-zinc-700 mx-1 self-stretch" />
-                    {["😊", "👉", "✨"].map(e => (
-                      <button key={e} onClick={() => insertAtCursor(` ${e} `)}
-                        className="px-2 py-1.5 text-xs rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition">
-                        {e}
-                      </button>
-                    ))}
-                  </div>
-                  <textarea ref={editorRef} value={content} onChange={e => setContent(e.target.value)} placeholder="Write your LinkedIn post…" className="w-full min-h-[240px] p-4 text-[14px] leading-6 outline-none resize-y bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
-                  <div className="px-4 py-2 flex items-center gap-3 text-[11px] text-gray-400 dark:text-zinc-500 border-t border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
-                    <span>{stats.words} words</span><span>·</span><span>{stats.lines} lines</span><span>·</span>
-                    <span className={pastFold ? "text-amber-600 dark:text-amber-400 font-medium" : ""}>{Math.min(content.length, FOLD)}/{FOLD} hook</span>
-                    <label className="ml-auto flex items-center gap-1.5 cursor-pointer">
-                      <input type="checkbox" checked={showFold} onChange={e => setShowFold(e.target.checked)} className="accent-[#0A66C2] w-3.5 h-3.5" /><span>Show fold line</span>
-                    </label>
-                  </div>
-                  <div className="p-3">
-                    <button onClick={copyUnicode} className={`w-full py-3 rounded-xl text-white text-sm font-semibold active:scale-[0.98] transition-colors shadow-sm ${copied ? "bg-emerald-600" : "bg-[#0A66C2] hover:bg-[#004182] shadow-[0_1px_6px_rgba(10,102,194,0.35)]"}`}>
-                      {copied ? "✓ Copied to clipboard" : "Copy for LinkedIn"}
-                    </button>
-                    <p className="mt-2 text-center text-[11px] text-gray-400 dark:text-zinc-500">Bold, italic & bullets become LinkedIn-safe Unicode — paste and post.</p>
-                  </div>
-                </div>
-                {tab === "preview" && (
-                  <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm p-4">
-                    <div className="font-semibold text-sm text-gray-800 dark:text-zinc-200 mb-3">Profile</div>
-                    <div className="grid gap-2.5">
+                  {editorTab === "write" ? (
+                    <>
+                      <AiBar text={content} onResult={setContent} onBusy={setGlobalAi} />
+                      <div className="px-3 py-2 flex flex-wrap gap-1 border-b border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
+                        {([
+                          ["𝐁 Bold", "**", "wrap"],
+                          ["𝐼 Italic", "*", "wrap"],
+                          ["S̶ Strike", "~~", "wrap"],
+                          ["• Bullet", "• ", "insert"],
+                          ["→ Arrow", " → ", "insert"],
+                          ["# Tag", " #", "insert"],
+                        ] as const).map(([label, text, type]) => (
+                          <button key={label}
+                            onClick={() => type === "wrap" ? insertWrap(text) : insertAtCursor(text)}
+                            className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition">
+                            {label}
+                          </button>
+                        ))}
+                        <div className="w-px bg-gray-200 dark:bg-zinc-700 mx-1 self-stretch" />
+                        {["😊", "👉", "✨"].map(e => (
+                          <button key={e} onClick={() => insertAtCursor(` ${e} `)} className="px-2 py-1.5 text-xs rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition">{e}</button>
+                        ))}
+                      </div>
+                      <textarea ref={editorRef} value={content} onChange={e => setContent(e.target.value)} placeholder="Write your LinkedIn post…" className="w-full min-h-[240px] p-4 text-[14px] leading-6 outline-none resize-y bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
+                      <div className="px-4 py-2 flex items-center gap-3 text-[11px] text-gray-400 dark:text-zinc-500 border-t border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
+                        <span>{stats.words} words</span><span>·</span><span>{stats.lines} lines</span>
+                      </div>
+                      <div className="p-3">
+                        <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-zinc-500">Bold, italic & bullets → LinkedIn-safe Unicode</div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="p-4 space-y-3">
+                      <div className="text-[11px] font-semibold tracking-wide uppercase text-gray-500 dark:text-zinc-400">Preview identity</div>
                       <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" className={inputCls} />
                       <input value={headline} onChange={e => setHeadline(e.target.value)} placeholder="Your headline" className={inputCls} />
                       <input value={avatar} onChange={e => setAvatar(e.target.value)} placeholder="Avatar URL" className={inputCls} />
                       <input value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)} placeholder="LinkedIn profile URL" className={inputCls} />
+                      <p className="text-[11px] text-gray-400 dark:text-zinc-500">Shown in Feed & Document previews. Nothing is uploaded — all local.</p>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -423,13 +424,13 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-500 dark:text-zinc-400">
-                      <input type="checkbox" checked={showFold} onChange={e => setShowFold(e.target.checked)} className="accent-[#0A66C2] w-3.5 h-3.5" />
-                      fold
-                    </label>
+                    <button onClick={copyUnicode}
+                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded-full border transition active:scale-95 ${copied ? "bg-emerald-500 border-emerald-500 text-white" : "bg-[#0A66C2] border-[#0A66C2] text-white hover:bg-[#004182] hover:border-[#004182] shadow-[0_1px_6px_rgba(10,102,194,0.3)]"}`}>
+                      {copied ? "✓ Copied" : "⎘ Copy for LinkedIn"}
+                    </button>
                     <button onClick={() => setExpanded(!expanded)}
-                      className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
-                      {expanded ? "Collapse" : "See more"}
+                      className="text-xs px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
+                      {expanded ? "Show less" : "…see more"}
                     </button>
                   </div>
                 </div>
@@ -457,19 +458,19 @@ export default function App() {
 
                     {/* Post body */}
                     <div className="px-3 pb-3 text-[14px] leading-[1.45] break-words text-gray-900 dark:text-zinc-100">
-                      {showFold && !expanded && pastFold ? (
+                      {!expanded && pastFold ? (
                         <>
                           <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: markdownToHtml(beforeFold) }} />
-                          <span className="bg-amber-100 dark:bg-amber-900/30 border-b-2 border-amber-400">{content.slice(Math.max(0, FOLD - 18), FOLD)}</span>
-                          <span className="text-gray-400 dark:text-zinc-500">…</span>
-                          <button onClick={() => setExpanded(true)} className="ml-1 text-gray-500 dark:text-zinc-400 hover:underline text-[14px]">...see more</button>
-                          <div className="mt-2 text-[11px] inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300">🔒 {FOLD}-char hook — keep the good stuff above the fold</div>
+                          <span className="text-gray-400">…</span>
+                          <button onClick={() => setExpanded(true)} className="ml-1 text-gray-500 dark:text-zinc-400 hover:underline text-[14px]">…see more</button>
                         </>
                       ) : (
-                        <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: markdownToHtml(content || "Your post will appear here…") }} />
-                      )}
-                      {expanded && pastFold && (
-                        <button onClick={() => setExpanded(false)} className="ml-2 text-gray-500 dark:text-zinc-400 hover:underline text-[14px]">Show less</button>
+                        <>
+                          <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: markdownToHtml(content || "Your post will appear here…") }} />
+                          {expanded && pastFold && (
+                            <button onClick={() => setExpanded(false)} className="ml-1 text-gray-500 dark:text-zinc-400 hover:underline text-[14px]">Show less</button>
+                          )}
+                        </>
                       )}
                     </div>
 
@@ -493,12 +494,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Fold indicator */}
-                  {pastFold && (
-                    <div className="mt-3 text-center text-xs text-gray-400 dark:text-zinc-500">
-                      Truncates at ~210 chars · {content.length - FOLD} hidden
-                    </div>
-                  )}
+
                 </div>
               </>
             )}
@@ -594,6 +590,22 @@ export default function App() {
         </footer>
 
         <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+        {globalAi && (
+          <div className="fixed inset-0 z-40 grid place-items-center bg-white/30 dark:bg-black/30 backdrop-blur-[6px] p-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white/85 dark:bg-zinc-900/85 backdrop-blur-xl border border-white/60 dark:border-zinc-700 shadow-[0_20px_60px_rgba(15,23,42,0.18)] p-6 text-center">
+              <div className="mx-auto w-10 h-10 rounded-full bg-gradient-to-br from-[#0A66C2] to-indigo-500 grid place-items-center shadow-lg">
+                <span className="w-5 h-5 rounded-full border-2 border-white/90 border-t-transparent animate-spin" />
+              </div>
+              <div className="mt-3 font-semibold text-sm text-gray-800 dark:text-zinc-100">{globalAi}</div>
+              <div className="text-xs text-gray-500 dark:text-zinc-400 mt-1">✨ {PROVIDER_LABELS[aiProvider]} is working — editing is paused</div>
+              <div className="mt-4 h-1 rounded-full bg-gray-200 dark:bg-zinc-800 overflow-hidden">
+                <div className="h-full w-1/3 bg-gradient-to-r from-[#0A66C2] to-indigo-500 rounded-full animate-[shimmer_1.2s_ease-in-out_infinite]" style={{ animationName: "shimmer" }} />
+              </div>
+            </div>
+            <style>{`@keyframes shimmer{0%{transform:translateX(-120%)}100%{transform:translateX(350%)}}`}</style>
+          </div>
+        )}
       </div>
     </div>
   )
