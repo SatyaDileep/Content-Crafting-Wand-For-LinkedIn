@@ -158,15 +158,11 @@ Anonymized, DNT-respected: `copy_preview, copy_caption, emoji_click, ai_click, a
 
 ## An Initiative By
 
-<div style="display:flex;gap:12px;align-items:center">
-  <div>
-    <strong>Satya Dileep Kumar Thotakura</strong> — Senior Product Manager @ Pegasystems — product builder obsessed with crafting great products with great taste. 13+ years in enterprise low-code & GenAI. Hyderabad.
-  </div>
-</div>
+**Satya Dileep Kumar Thotakura** — Product Manager @ Pegasystems · Hyderabad — obsessed with great products, great taste.
 
-- LinkedIn: [satya-dileep-kumar-thotakura-9b25021b](https://www.linkedin.com/in/satya-dileep-kumar-thotakura-9b25021b/)
-- Portfolio: [satyadileep.github.io](https://satyadileep.github.io)
-- Focus: Low-Code • GenAI • Agentic AI • DX
+Private by design — your content never leaves your browser · MIT Open Source
+
+- LinkedIn: [satya-dileep-kumar-thotakura-9b25021b](https://www.linkedin.com/in/satya-dileep-kumar-thotakura-9b25021b/) · Portfolio: [satyadileep.github.io](https://satyadileep.github.io)
 
 ---
 
