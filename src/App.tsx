@@ -3,6 +3,8 @@ import { toPng } from "html-to-image"
 import { markdownToUnicode, markdownToHtml } from "./lib/unicode"
 import { callAI, PROVIDER_LABELS } from "./lib/gemini"
 import { useAuth } from "./lib/auth"
+import { track } from "./lib/telemetry"
+import { shareOnLinkedIn, postViaApi, beginLinkedInLogin, LINKEDIN_CLIENT_ID } from "./lib/linkedin"
 import AiBar from "./components/AiBar"
 import SettingsModal from "./components/SettingsModal"
 import Carousel from "./components/Carousel"
@@ -22,6 +24,9 @@ What's your take? 👇
 #LinkedInTips #ContentCreation`
 
 const GRADIENTS = [
+  { id: "corporate-navy", bg: "linear-gradient(135deg, #0F172A, #1E3A5F)", text: "#f8fafc" },
+  { id: "corporate-slate", bg: "linear-gradient(135deg, #1E293B, #334155)", text: "#f1f5f9" },
+  { id: "corporate-white", bg: "#ffffff", text: "#0F172A" },
   { id: "indigo-deep", bg: "linear-gradient(135deg, #1A237E, #5B4F8B)", text: "#f0f0f0" },
   { id: "navy-pink", bg: "linear-gradient(135deg, #1D2B64, #F8CDDA)", text: "#f0f0f0" },
   { id: "purple-violet", bg: "linear-gradient(135deg, #5B21B6, #4C1D95)", text: "#f0f0f0" },
@@ -86,8 +91,25 @@ export default function App() {
   }, [avatar])
   const resolvedAvatar = avatarDataUrl || FALLBACK_AVATAR
 
+  const [linkedIn, setLinkedIn] = useState(() => typeof localStorage !== "undefined" && !!localStorage.getItem("cc_linkedin_token"))
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const code = params.get("code")
+    if (code) {
+      track("linkedin_oauth_callback", {})
+      fetch(`/api/linkedin/token?code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(location.origin + "/auth/linkedin/callback")}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d?.access_token) { localStorage.setItem("cc_linkedin_token", d.access_token); setLinkedIn(true) }
+          else { localStorage.setItem("cc_linkedin_token", "code:" + code); setLinkedIn(true) }
+        })
+        .catch(() => { localStorage.setItem("cc_linkedin_token", "code:" + code); setLinkedIn(true) })
+        .finally(() => history.replaceState({}, "", location.pathname))
+    }
+  }, [])
+
   /* Card state */
-  const [gradient, setGradient] = useState(GRADIENTS[2])
+  const [gradient, setGradient] = useState(GRADIENTS[0])
   const [cardHeader, setCardHeader] = useState("AI-Byte Series #Day24")
   const [cardTitle, setCardTitle] = useState("Your catchy title here")
   const [thought, setThought] = useState("")
@@ -128,6 +150,7 @@ export default function App() {
     setTimeout(() => { el.focus(); el.setSelectionRange(s + wrap.length, s + wrap.length + sel.length) }, 0)
   }
   function insertAtCursor(txt: string) {
+    if (["😊", "👉", "✨"].some(e => txt.includes(e)) || txt.trim() === "•" || txt.includes("→") || txt.includes("#")) track("emoji_click", { emoji: txt.trim().slice(0, 4) })
     const el = editorRef.current
     if (!el) { setContent(c => c + txt); return }
     const s = el.selectionStart, e = el.selectionEnd
@@ -135,24 +158,39 @@ export default function App() {
     setContent(next)
     setTimeout(() => { el.focus(); el.setSelectionRange(s + txt.length, s + txt.length) }, 0)
   }
-  async function copyUnicode() {
+  async function copyUnicode(source: "preview" | "caption" = "preview") {
     await navigator.clipboard.writeText(unicode)
+    track(source === "caption" ? "copy_caption" : "copy_preview", { len: unicode.length })
     setCopied(true); setTimeout(() => setCopied(false), 1800)
+  }
+  async function shareToLinkedIn() {
+    track("linkedin_share_click", { len: unicode.length, has_token: !!localStorage.getItem("cc_linkedin_token") })
+    const ok = await postViaApi(unicode)
+    if (ok) { track("linkedin_post_api_success", {}); return }
+    if (LINKEDIN_CLIENT_ID && !localStorage.getItem("cc_linkedin_token")) {
+      beginLinkedInLogin()
+      return
+    }
+    shareOnLinkedIn(unicode)
+    track("linkedin_share_intent", {})
   }
   async function doExport() {
     if (!cardRef.current) { alert("Nothing to export on this tab."); return }
+    track("export_png_click", { width: cardWidth, gradient: gradient.id })
     setExporting(true)
     const opts = { cacheBust: true, pixelRatio: 2, backgroundColor: undefined }
     try {
       const dataUrl = await toPng(cardRef.current, opts)
       const a = document.createElement("a"); a.download = "linkedin-post.png"; a.href = dataUrl; a.click()
+      track("export_png_success", { width: cardWidth })
     } catch (e: any) {
-      // Google Fonts embedding can occasionally fail; retry without font inlining.
       try {
         const dataUrl = await toPng(cardRef.current, { ...opts, skipFonts: true })
         const a = document.createElement("a"); a.download = "linkedin-post.png"; a.href = dataUrl; a.click()
+        track("export_png_success", { width: cardWidth, fallback: true })
         return
       } catch { /* fall through to error */ }
+      track("export_png_error", {})
       console.error("Export failed:", e)
       alert("Export failed: " + (e?.message || e || "unknown error"))
     } finally {
@@ -162,6 +200,7 @@ export default function App() {
   async function callCardAi(action: "generateThought" | "generateTitleHeader") {
     if (!aiKey) { setSettingsOpen(true); return }
     if (!content.trim()) return
+    track("ai_click", { action, provider: aiProvider, source: "card" })
     setAiLoading(action)
     setGlobalAi(action === "generateThought" ? "Crafting thought…" : "Crafting title…")
     try {
@@ -173,7 +212,8 @@ export default function App() {
         if (parts[0]) setCardTitle(parts[0])
         if (parts[1]) setCardHeader(parts[1])
       }
-    } catch (e: any) { alert(e.message || "AI failed") }
+      track("ai_success", { action, provider: aiProvider })
+    } catch (e: any) { track("ai_error", { action, provider: aiProvider }); alert(e.message || "AI failed") }
     finally { setAiLoading(null); setGlobalAi(null) }
   }
 
@@ -189,9 +229,9 @@ export default function App() {
       <div className="min-h-screen isolate bg-[#f6f7fb] dark:bg-[#0e0f12] text-gray-900 dark:text-zinc-100 transition-colors duration-200 relative overflow-x-clip">
         {/* Ambient color blobs (glass glow) */}
         <div className="fixed inset-0 pointer-events-none -z-10">
-          <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-[#0A66C2]/15 blur-3xl" />
-          <div className="absolute top-1/4 -right-40 w-[560px] h-[560px] rounded-full bg-violet-400/15 blur-3xl" />
-          <div className="absolute bottom-[-160px] left-1/3 w-[520px] h-[520px] rounded-full bg-teal-300/20 blur-3xl" />
+          <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-[#0A66C2]/8 blur-3xl" />
+          <div className="absolute top-1/4 -right-40 w-[560px] h-[560px] rounded-full bg-slate-400/6 blur-3xl" />
+          <div className="absolute bottom-[-160px] left-1/3 w-[520px] h-[520px] rounded-full bg-zinc-300/6 blur-3xl" />
         </div>
 
         {/* ══════ Header ══════ */}
@@ -201,10 +241,19 @@ export default function App() {
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0A66C2] to-indigo-500 grid place-items-center text-white font-bold text-sm shrink-0 shadow-[0_2px_12px_rgba(10,102,194,0.4)]">in</div>
               <div className="hidden sm:block">
                 <div className="font-bold text-sm leading-tight bg-gradient-to-r from-[#0A66C2] to-indigo-600 bg-clip-text text-transparent">Content Crafter</div>
-                <div className="text-[11px] text-gray-400 dark:text-zinc-500 leading-tight">LinkedIn Post Studio · 100% private</div>
+                <div className="text-[11px] text-gray-500 dark:text-zinc-400 leading-tight">Private • No tracking • No signup</div>
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {LINKEDIN_CLIENT_ID ? (
+                linkedIn ? (
+                  <button onClick={() => { localStorage.removeItem("cc_linkedin_token"); setLinkedIn(false); track("linkedin_disconnect", {}) }} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#0A66C2] border border-[#0A66C2] text-white hover:bg-[#004182] transition"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> LinkedIn ✓</button>
+                ) : (
+                  <button onClick={() => { track("linkedin_connect_click", {}); beginLinkedInLogin() }} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-[#0A66C2] text-[#0A66C2] hover:bg-blue-50 transition"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> Connect LinkedIn</button>
+                )
+              ) : (
+                <button onClick={shareToLinkedIn} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#0A66C2] text-white hover:bg-[#004182] transition"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> Post</button>
+              )}
               <button onClick={() => setSettingsOpen(true)}
                 className={`text-xs font-semibold px-3.5 py-1.5 rounded-full border transition active:scale-95 ${aiKey
                   ? "bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-300/50 dark:ring-emerald-700/40 hover:border-emerald-300 dark:hover:border-emerald-700"
@@ -340,9 +389,10 @@ export default function App() {
                   <button onClick={doExport} disabled={exporting} className="w-full py-3 rounded-xl text-white text-sm font-semibold active:scale-[0.98] transition shadow-sm bg-gradient-to-r from-[#0A66C2] to-indigo-600 hover:opacity-90 disabled:opacity-40 shadow-[0_2px_10px_rgba(10,102,194,0.35)]">
                     {exporting ? "Exporting…" : "⬇ Download PNG"}
                   </button>
-                  <button onClick={copyUnicode} className={`w-full py-2.5 rounded-xl text-sm font-semibold border transition active:scale-[0.98] ${copied ? "bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300" : "bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700"}`}>
+                  <button onClick={() => copyUnicode("caption")} className={`w-full py-2.5 rounded-xl text-sm font-semibold border transition active:scale-[0.98] ${copied ? "bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300" : "bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700"}`}>
                     {copied ? "✓ Caption copied" : "Copy caption for LinkedIn"}
                   </button>
+                  <button onClick={shareToLinkedIn} className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-[#0A66C2] text-white hover:bg-[#004182] transition active:scale-[0.98]"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> Post to LinkedIn</button>
                   <p className="text-center text-[11px] text-gray-400 dark:text-zinc-500">Download the image, paste caption as your post text.</p>
                 </div>
               </div>
@@ -424,10 +474,11 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={copyUnicode}
+                    <button onClick={() => copyUnicode("preview")}
                       className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded-full border transition active:scale-95 ${copied ? "bg-emerald-500 border-emerald-500 text-white" : "bg-[#0A66C2] border-[#0A66C2] text-white hover:bg-[#004182] hover:border-[#004182] shadow-[0_1px_6px_rgba(10,102,194,0.3)]"}`}>
                       {copied ? "✓ Copied" : "⎘ Copy for LinkedIn"}
                     </button>
+                    <button onClick={shareToLinkedIn} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#0A66C2] text-white hover:bg-[#004182] transition active:scale-95"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> Post</button>
                     <button onClick={() => setExpanded(!expanded)}
                       className="text-xs px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
                       {expanded ? "Show less" : "…see more"}
@@ -510,9 +561,9 @@ export default function App() {
                   </div>
                 </div>
                 <div className="rounded-3xl border border-white/70 dark:border-zinc-800 bg-[radial-gradient(circle,rgba(120,130,150,0.25)_1px,transparent_1px)] bg-[size:18px_18px] p-6 flex justify-center">
-                  <div ref={cardRef} className="w-full rounded-[12px] overflow-hidden shadow-2xl" style={{ background: gradient.bg, maxWidth: `${cardWidth}px` }}>
+                  <div ref={cardRef} className={`w-full rounded-[12px] overflow-hidden shadow-2xl ${gradient.id === "corporate-white" ? "border border-gray-200" : ""}`} style={{ background: gradient.bg, maxWidth: `${cardWidth}px` }}>
                     {/* macOS header */}
-                    <div className="px-4 py-3 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                    <div className="px-4 py-3 flex items-center justify-between" style={{ background: gradient.id === "corporate-white" ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.05)", borderBottom: gradient.id === "corporate-white" ? "1px solid rgba(15,23,42,0.08)" : "1px solid rgba(255,255,255,0.1)" }}>
                       <div className="flex items-center gap-2">
                         <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
                         <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />

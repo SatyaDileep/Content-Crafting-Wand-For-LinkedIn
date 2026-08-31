@@ -1,163 +1,200 @@
 # Content Crafter — Wand for LinkedIn ✨
 
-**The open-source LinkedIn post studio that respects your privacy.**
+**Stop guessing what your LinkedIn post will look like. See it, polish it, ship it — 100% private.**
 
-Most LinkedIn tools lock your best ideas behind a paywall. Content Crafter is different — it's free, it's open source, and your content never leaves your browser. Write posts that stop the scroll, preview exactly how they'll appear in the feed, and export beautiful cards that make your brand shine.
+> I was tired of paying $39/mo for a text formatter that wanted my LinkedIn password. So I built the tool I actually wanted — and open-sourced it.
 
-> *"I built this because I was tired of paying for tools that just format text."*
-
----
-
-## Why This Exists
-
-LinkedIn is the world's professional stage. But crafting a great post is harder than it should be:
-
-- **The 210-char fold** — your hook disappears behind "...see more" if you don't nail the opening. Most people don't even know where the cutoff is.
-- **No formatting support** — LinkedIn strips Markdown. Bold, italic, strikethrough? Gone. Unless you know the Unicode trick.
-- **No preview** — you paste your post, hit publish, and *hope* it looks right. By then it's too late.
-- **AI tools are paywalled** — every "LinkedIn AI assistant" wants your credit card before you can even try it.
-
-Content Crafter solves all four — for free, forever, with zero tracking.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/SatyaDileep/Content-Crafting-Wand-For-LinkedIn) [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](#license) [![100% Client-Side](https://img.shields.io/badge/client--side-100%25-blue)](#the-privacy-promise) [![No Tracking](https://img.shields.io/badge/tracking-zero-lightgrey)](#the-privacy-promise)
 
 ---
 
-## What It Does
+## The Problem — LinkedIn Makes You Fly Blind
 
-### 📱 Feed Preview — See Before You Post
-Write your post and watch it appear in a **pixel-perfect LinkedIn feed mockup**. Toggle between mobile, tablet, and desktop. The **210-character fold inspector** highlights exactly where LinkedIn will truncate your post, so your hook always lands before the collapse.
+LinkedIn is the world's professional stage, but writing for it is needlessly painful:
 
-### ✍️ Rich Text Formatter — Formatting That Survives Paste
-Type in Markdown (`**bold**`, `*italic*`, `~~strikethrough~~`). Content Crafter converts it to **Unicode Mathematical Sans-Serif** — formatting that LinkedIn actually keeps when you paste. One click, done.
+1. **The 210-char cliff** — your hook vanishes behind `…see more` if the first 3 lines don't grab. You never know where the cut is until you've already posted.
+2. **Formatting is stripped** — LinkedIn kills Markdown. `**bold**`, bullets, italics? Gone unless you know the Unicode hack.
+3. **No true preview** — not for feed posts, not for document PDFs. You hit Publish and *hope*.
+4. **AI is paywalled** — every "LinkedIn AI writer" wants a subscription before you type one word.
+5. **Document posts are a gamble** — upload a 10-page PDF and pray the carousel looks right.
 
-### 🎨 Image Card Export — Branded Visuals in Seconds
-Choose from **17 curated gradient themes**, add a highlighted thought, customize width and colors, then **export a retina-quality PNG** — perfect for carousel posts, standalone announcements, or sharing on other platforms.
+**Content Crafter fixes all five. Free, open-source, and your words never leave your browser.**
 
-### 🤖 AI Writing Assistant — Your Ghostwriter, Your Key
-Optional AI integration (BYO API key — free tier works). Improve your draft, add emojis, shift tone to professional, or auto-generate a full post from an idea. **Your API key stays in your browser.** We never see it. Pick your provider in Settings — **Gemini**, **Groq**, or **any OpenAI-compatible endpoint** (OpenRouter, Together, a local LLM, etc.). Switch anytime; the UI shows which provider powered each result.
+---
+
+## Why I Built This
+
+I'm a Product Manager who posts on LinkedIn to build in public. I tried Taplio, Typefully, Buffer — great products, but I didn't want a subscription for formatting text, and I definitely didn't want to hand over my LinkedIn account.
+
+I needed one private place where I could **write → see the real feed cut → format with Unicode that survives paste → design a card or visualize my PDF → copy and post.** No servers, no tracking, no account.
+
+So I built it for myself. Then I realized everyone needs this. So I shipped it free and open source. If it helps one creator post with confidence, it was worth it.
+
+---
+
+## What It Does — Three Studios, One Flow
+
+### 🔍 Feed Preview — See Exactly What Your Network Will See
+
+- Pixel-accurate LinkedIn feed mockup (desktop `560px` — where 90% of decisions happen)
+- **Intuitive fold** — subtle `…see more / Show less` at ~210 chars. No noisy badges, no clutter. Your hook is either above the fold or it isn't — you know instantly.
+- **Copy for LinkedIn right beside the preview** — `⎘ Copy for LinkedIn` sits next to `…see more` where your eye already is. One click copies LinkedIn-safe Unicode (see below).
+
+### 🎨 Image Card Studio — One Container, Not Three
+
+The journey: compose a visual post, download a crisp PNG, paste its caption on LinkedIn. More intuitive than "write then attach" for many creators.
+
+- **Single glassmorphic panel** with `✎ Compose | 🎨 Style` tabs — not two floating containers
+  - **Compose:** eyebrow + big title + pull quote + full post body (AiBar + toolbar live here when in card mode)
+  - **Style:** width slider (300–700px), text color, 17 curated gradients (indigo-deep to burnt-orange)
+- **Export canvas:** dotted design surface so you *feel* it's exportable, macOS chrome, `html-to-image` at 2× retina → `linkedin-post.png`
+- **Actions where they belong:** `⬇ Download PNG` + `Copy caption` live inside the same panel — preview on the right is pure preview, no duplicate buttons
+
+### 📄 Document Visualizer — The Differentiator
+
+Nobody shows you how caption + PDF look together. We do — because that's how LinkedIn renders a document post.
+
+- Drop **images (PNG/JPG/WebP) or a PDF** — PDF pages are rendered via `pdfjs-dist` into swipeable tiles
+- **Limits that protect you:** max **10 slides**, **6 MB per file**, type whitelisting with friendly inline errors
+- **Post + tiles together:** your live caption on top, two small tiles below (`112×148`) with `‹ ›` to swipe, `✕` on hover to remove — no giant frame inside the post, no second 10-tile grid. Just how LinkedIn shows *caption + document*.
+- **Pure visualization:** no export PDF button. You uploaded your PDF to *see* it — we don't compete with your original. Intuitive, minimal, honest.
+
+### 🤖 AI That Respects Your Voice (and Your Wallet)
+
+**BYO key. Your key stays in `localStorage`. Sent directly to Gemini / Groq / any OpenAI-compatible endpoint. We never see it.**
+
+- **Provider-aware:** `✓ Gemini AI Active` in the header tells you who's working. Switch provider + model in Settings anytime.
+- **Four purposeful actions** (Auto-Generate removed — it was noisy):
+  - `✨ Improve` → opens a **modal**: 6 presets ("Stronger hook", "Fix grammar", "Make concise", etc.) + freeform input → custom prompt that targets *that* intent
+  - `😊 Add Emojis` → 6–10 emojis, hook + sprinkled, never in hashtags — and **never truncates** your post
+  - `💼 Pro` → crisp executive tone
+  - `🏷️ Hashtags` → 5–7 tags on **one line**, appended to your post (never replaces it), broad + niche mix for reach
+- **Prompt hygiene:** strict `STRICT FORMATTING` blocks (3–5 paragraphs, one blank line between paragraphs, tight bullets) + deterministic **post-processing** (`normalizePost` — collapses `3+` newlines, tightens `• ` gaps, caps paragraphs) so AI never bloats your preview
+- **Card AI too:** `✨ Thought` (pull quote) + `🤖 Title` inside Image Card, with spinner + `Working…`
+- **Glassmorphic global loader:** every LLM call dims the whole UI (`bg-white/30 + backdrop-blur-[6px]`) with a frosted `Gemini is working — editing is paused` card + shimmer bar. No typing, no confusion, completely intuitive.
+
+### ✍️ Editor — The Bridge
+
+- Markdown-aware: `**bold** → 𝐛𝐨𝐥𝐝`, `*italic → 𝑖𝑡𝑎𝑙𝑖𝑐*`, `~~strike~~`, `•` bullets → Unicode that survives paste
+- Toolbar: `𝐁 Bold | 𝐼 Italic | S̶ Strike | • Bullet | → Arrow | # Tag | 😊 👉 ✨`
+- AiBar always visible with provider dot + color
+- Two-way tabs inside the same glass container: `✎ Post | 👤 Profile` — profile (name, headline, avatar URL, LinkedIn URL) lives *inside* the editor, not as a separate card. What you see in Feed & Document previews updates instantly. Nothing uploaded.
 
 ---
 
 ## The Privacy Promise
 
-| What We Do | What We Don't |
+| We do | We don't |
 |---|---|
-| Run entirely in your browser | Send data to any server |
-| Store your API key in localStorage only | Store anything on our end |
-| Use your own Gemini key for AI | Run a backend or database |
-| Open source — audit the code yourself | Track you with analytics |
+| Run 100% in your browser | Run a backend or database |
+| Store AI keys in `localStorage` only | Send your content to any server |
+| Call *your* provider directly | Track, log, or sell anything |
+| Open source — audit it yourself | Require an account |
 
-**Your content is yours.** Period.
+> Keys never leave this browser. Content never leaves this browser.
+
+---
+
+## Tech Stack — Zero Backend
+
+| Layer | Choice |
+|---|---|
+| Framework | React 19 + TypeScript |
+| Build | Vite 8 |
+| Styling | Tailwind CSS v4 (`@tailwindcss/vite`) + glassmorphism (`backdrop-blur-xl`, ambient blobs) |
+| Fonts | Inter + Source Serif 4 |
+| PNG Export | `html-to-image` (2× retina, Google Fonts fallback with `skipFonts`) |
+| PDF Preview | `pdfjs-dist` (worker lazy-loaded) |
+| AI | Gemini 3.6 Flash/Pro, Groq (Llama 3.3/3.1, Gemma, Mixtral), or any OpenAI-compatible base URL |
+| Auth | Google OAuth (optional, via `VITE_GOOGLE_CLIENT_ID`) |
+| Quality | `oxlint` + `tsc -b` |
+
+Everything is static. Host it anywhere.
 
 ---
 
 ## Quick Start
 
 ```bash
-# Clone and install
 git clone https://github.com/SatyaDileep/Content-Crafting-Wand-For-LinkedIn.git
 cd Content-Crafting-Wand-For-LinkedIn
 npm install
-
-# Start developing
-npm run dev     # → http://localhost:5173
-
-# Production build
-npm run build   # → dist/
-npm run preview # preview the build locally
+npm run dev      # → http://localhost:5173
+npm run build    # → dist/
+npm run preview  # preview the build
+npm run lint     # oxlint
 ```
 
-### Optional: Enable AI Features
+### Enable AI (optional, 30 seconds)
 
-1. Open the app → **Settings → AI Provider**.
-2. Choose a provider: **Gemini** ([aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)), **Groq** ([console.groq.com/keys](https://console.groq.com/keys)), or **Custom** (any OpenAI-compatible base URL — OpenRouter, Together, local LLMs, etc.).
-3. Paste your API key and pick a model. Done — the AI buttons now work.
+1. App → **Settings** (top-right)
+2. Pick provider: **Gemini** ([aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)) · **Groq** ([console.groq.com/keys](https://console.groq.com/keys)) · **Custom** (OpenRouter / Together / local LLM base URL)
+3. Paste key + model → header flips to `✓ Gemini AI Active` → all AI buttons work
 
-> Your key is stored in your browser's `localStorage` and sent directly to your chosen provider. It never touches our servers.
-
-### Optional: Google Sign-In
-
-Set `VITE_GOOGLE_CLIENT_ID` in your `.env` to enable optional Google Sign-In for AI consent. Works without it — just paste your API key.
+Google Sign-In is optional — set `VITE_GOOGLE_CLIENT_ID` in `.env` if you want it. AI works fine without.
 
 ---
 
-## Deploy to Netlify (or anywhere)
+## Deploy — Free Forever
 
-**One-click:**
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy)
+**It's static. No functions, no DB, no cost.**
 
-**Manual (30 seconds):**
-1. Fork this repo on GitHub
-2. Netlify → **Add new site** → **Import from Git**
-3. Build command: `npm run build`
-4. Publish directory: `dist`
-5. Deploy. Done.
+**Vercel (recommended, Hobby free):**
+1. Push to GitHub
+2. [vercel.com](https://vercel.com) → Add New → Project → import repo
+3. Build: `npm run build`, Output: `dist` (auto-detected), `vercel.json` handles SPA rewrite → Deploy
 
-Also works on Vercel, Cloudflare Pages, GitHub Pages, or any static host. The `netlify.toml` is preconfigured with SPA redirects.
+**Netlify:** Fork → Add new site → Import → `npm run build` → `dist` → Deploy (one-click button at top works too). `netlify.toml` is preconfigured.
 
----
-
-## Deploy Free to Vercel (Hobby)
-
-100% client-side, so it costs **$0** on Vercel's free Hobby tier — no backend, no serverless functions.
-
-1. Push this repo to your GitHub.
-2. Go to [vercel.com](https://vercel.com) → **Add New → Project** → import the repo.
-3. Vercel auto-detects Vite. If needed, set:
-   - **Build Command:** `npm run build`
-   - **Output Directory:** `dist`
-4. **Optional** — for Google Sign-In, add an Environment Variable in Vercel:
-   - `VITE_GOOGLE_CLIENT_ID` = your OAuth client ID
-   - (The Gemini API key is entered by *users* in the app — no env var needed.)
-5. Click **Deploy**. `vercel.json` handles the SPA rewrite so every route serves `index.html`.
-
-Done. Your app is live on a `*.vercel.app` URL, auto-redeploying on every `git push`.
+**Also:** Cloudflare Pages, GitHub Pages, any static host.
 
 ---
 
-## Tech Stack
+## Why Open Source?
 
-| Layer | Technology |
-|---|---|
-| Framework | React 19 + TypeScript |
-| Build | Vite 8 |
-| Styling | Tailwind CSS v4 |
-| Fonts | Inter + Source Serif 4 |
-| PNG Export | html-to-image (2x retina) |
-| AI | Google Gemini (BYO key, free tier) |
-| Auth | Google OAuth (optional) |
+1. **Trust is the feature.** You can audit exactly what happens to your content and keys.
+2. **LinkedIn tools shouldn't be rent.** Formatting and preview are table stakes — they should be free.
+3. **Build in public = better product.** Every commit, every fold tweak, every prompt fix is public. You shape it.
+4. **Remix friendly.** MIT — fork it for your team, your brand, your language.
 
-**Zero backend. Zero tracking. 100% client-side.**
+If this helped you post, star it and share your first post made with Content Crafter. That's the best thanks.
 
 ---
 
-## How It Helps Content Creators
+## Roadmap
 
-| Problem | Solution |
-|---|---|
-| "Will my hook survive the fold?" | **Feed Preview** highlights the 210-char cutoff in real time |
-| "My formatting gets stripped on LinkedIn" | **Unicode Formatter** converts Markdown to paste-safe formatting |
-| "I need a branded image but can't design" | **Image Card Export** with 17 themes and one-click PNG download |
-| "I stare at a blank post for 30 minutes" | **AI Assistant** generates, improves, and polishes your drafts |
-| "I don't want to pay $20/mo for this" | **Free forever.** MIT licensed. No account needed. |
-| "I'm worried about my data" | **Privacy-first.** Nothing leaves your browser. Audit the code. |
+- [x] Fold-aware feed preview + Unicode formatter
+- [x] Image Card (17 themes, PNG export)
+- [x] Document visualizer (caption + PDF)
+- [x] BYO-key AI (Gemini/Groq/OpenAI) with modal Improve & glass loader
+- [ ] More card layouts (quote, stats, list)
+- [ ] Scheduling hints (best times to post)
+- [ ] Carousel builder (export multi-slide PDF)
+- [ ] Your idea? Open an issue / PR.
 
 ---
 
 ## Contributing
 
-PRs welcome! This project is MIT-licensed — fork it, remix it, make it yours.
+PRs welcome. Keep it surgical and private-by-default.
 
 ```bash
-npm run lint     # oxlint
-npm run build    # verify before pushing
+npm run lint
+npm run build   # must pass before push
 ```
+
+Please don't commit `.env` or keys. Read the full [Contributing Guide](CONTRIBUTING.md) and please respect our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ---
 
 ## License
 
-MIT — use it, ship it, brag about it.
+Released under the [MIT License](LICENSE) — use it, ship it, brag about it.
 
 ---
 
-*Built by [Satya Dileep Kumar Thotakura](https://www.linkedin.com/in/satya-dileep-kumar-thotakura-9b25021b/) · #ContentCrafter*
+*Built in public by [Satya Dileep Kumar Thotakura](https://www.linkedin.com/in/satya-dileep-kumar-thotakura-9b25021b/) — Product Manager @ Pegasystems · #ContentCrafter #BuildInPublic*
+
+---
+
+*Built in public by [Satya Dileep Kumar Thotakura](https://www.linkedin.com/in/satya-dileep-kumar-thotakura-9b25021b/) — Product Manager @ Pegasystems · #ContentCrafter #BuildInPublic*

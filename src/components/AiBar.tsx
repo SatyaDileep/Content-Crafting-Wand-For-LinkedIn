@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { callAI, callAIWithPrompt, buildCustomImprovePrompt, PROVIDER_LABELS, type GeminiAction, type AIProviderType } from "../lib/gemini"
 import { useAuth } from "../lib/auth"
+import { track } from "../lib/telemetry"
 
 type SimpleAction = Exclude<GeminiAction, "generateThought" | "generateTitleHeader">
 
@@ -88,6 +89,8 @@ export default function AiBar({ text, onResult, onBusy }: { text: string; onResu
     setInfo("")
     if (!aiKey) { setError(`Add your ${PROVIDER_LABELS[aiProvider]} API key in Settings to enable AI.`); return }
     if (!text.trim()) { setError("Write something first."); return }
+    track("ai_click", { action: a, provider: aiProvider, has_custom: !!customPrompt })
+    if (a === "emojis") track("emoji_ai_click", { provider: aiProvider })
     const busyMsg = a === "hashtags" ? "Finding best hashtags…" : a === "emojis" ? "Adding emojis…" : a === "professional" ? "Polishing tone…" : "Improving post…"
     setLoading(a); onBusy?.(busyMsg)
     try {
@@ -104,8 +107,9 @@ export default function AiBar({ text, onResult, onBusy }: { text: string; onResu
       } else {
         onResult(cleaned)
       }
+      track("ai_success", { action: a, provider: aiProvider })
       setInfo(`⚡ Powered by ${PROVIDER_LABELS[aiProvider]}`)
-    } catch (e: any) { setError(e.message || "Failed") }
+    } catch (e: any) { track("ai_error", { action: a, provider: aiProvider }); setError(e.message || "Failed") }
     finally { setLoading(null); onBusy?.(null) }
   }
 

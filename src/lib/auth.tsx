@@ -14,7 +14,6 @@ type AuthCtx = {
   setAiModel: (m: string)=>void
   aiBase: string
   setAiBase: (b: string)=>void
-  googleClientId: string
   signOut: ()=>void
 }
 
@@ -52,13 +51,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return DEFAULT_GEMINI_MODEL
   })
   const [aiBase, setAiBaseRaw] = useState(()=> localStorage.getItem("cc_ai_base") || "")
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string || ""
   const setAiProvider = (p: AIProviderType)=>{ setAiProviderRaw(p); localStorage.setItem("cc_ai_provider", p) }
   const setAiKey = (k: string)=>{ setAiKeyRaw(k); if(k) localStorage.setItem("cc_ai_key", k); else localStorage.removeItem("cc_ai_key") }
   const setAiModel = (m: string)=>{ setAiModelRaw(m); localStorage.setItem("cc_ai_model", m) }
   const setAiBase = (b: string)=>{ setAiBaseRaw(b); if(b) localStorage.setItem("cc_ai_base", b); else localStorage.removeItem("cc_ai_base") }
   useEffect(()=>{ if(user) localStorage.setItem("cc_user", JSON.stringify(user)); else localStorage.removeItem("cc_user") }, [user])
   const signOut = ()=> setUser(null)
-  return <Ctx.Provider value={{ user, setUser, aiProvider, setAiProvider, aiKey, setAiKey, aiModel, setAiModel, aiBase, setAiBase, googleClientId, signOut }}>{children}</Ctx.Provider>
+  return <Ctx.Provider value={{ user, setUser, aiProvider, setAiProvider, aiKey, setAiKey, aiModel, setAiModel, aiBase, setAiBase, signOut }}>{children}</Ctx.Provider>
 }
 export const useAuth = ()=> useContext(Ctx)
