@@ -115,5 +115,10 @@ select event, count(*) from events where created_at > now()-interval '7 days' gr
 select date_trunc('day', created_at) as day, count(*) from events where event='linkedin_share_intent' group by day;
 ```
 
-## 8. Next Action
+## 8. PRDs
+- `PRD_MLP-2a_Drafts-Calendar.md` — local drafts+calendar+email reminder ($0)
+- `PRD_MLP-2b_Sync-Cron.md` — Google auth + Supabase sync + cron publish
+- `PRD_MLP-3_Visualization.md` — 3-month history viz + projection
+
+## 9. Next Action
 Implement MLP-2a local drafts+calendar first, publish roadmap image on LinkedIn, collect waitlist for MLP-2b sync. No data lost — this doc is source of truth.
