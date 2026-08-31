@@ -638,24 +638,25 @@ export default function App() {
 
         {/* ══════ Footer ══════ */}
         <footer className="max-w-[1280px] mx-auto px-4 pb-10">
-          <div className="border-t border-gray-200/60 dark:border-zinc-800 pt-8">
-            <div className="mx-auto max-w-[640px] flex flex-col items-center gap-5 text-center">
+          <div className="border-t border-gray-200/50 dark:border-zinc-800 pt-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <img src={resolvedAvatar} alt="" className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-zinc-700" />
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#0A66C2] to-indigo-500 grid place-items-center text-white font-bold text-xs shadow-sm">in</div>
                 <div className="text-left">
-                  <div className="text-sm font-semibold text-gray-900 dark:text-zinc-100 leading-none">Satya Dileep Kumar Thotakura</div>
-                  <div className="text-xs text-gray-500 dark:text-zinc-400 mt-1">Product Manager @ Pegasystems · Hyderabad — obsessed with great products, great taste</div>
+                  <div className="text-sm font-semibold text-gray-900 dark:text-zinc-100 leading-none">Content Crafter</div>
+                  <div className="text-xs text-gray-500 dark:text-zinc-400">Private by design — your content never leaves your browser · MIT</div>
                 </div>
               </div>
-              <div className="text-xs leading-5 text-gray-500 dark:text-zinc-400">
-                <span className="inline-flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-gradient-to-br from-[#0A66C2] to-indigo-500 grid place-items-center text-white text-[8px] font-bold">in</span> Content Crafter</span>
-                <span className="mx-2 opacity-30">·</span>Private by design — your content never leaves your browser
-                <span className="mx-2 opacity-30">·</span>MIT Open Source
-              </div>
-              <div className="flex items-center gap-3 text-xs">
-                <a href="https://www.linkedin.com/in/satya-dileep-kumar-thotakura-9b25021b/" target="_blank" className="inline-flex items-center gap-1.5 text-gray-600 dark:text-zinc-300 hover:text-[#0A66C2] transition"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> LinkedIn</a>
-                <span className="opacity-20">·</span>
-                <a href="https://satyadileep.github.io" target="_blank" className="text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-zinc-100 transition">Portfolio ↗</a>
+              <div className="flex items-center gap-3">
+                <img src={resolvedAvatar} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-200 dark:border-zinc-700" />
+                <div className="text-left hidden sm:block">
+                  <div className="text-xs font-medium text-gray-700 dark:text-zinc-300 leading-none">Satya Dileep <span className="font-normal text-gray-500">· PM @ Pegasystems, Hyderabad</span></div>
+                  <div className="text-[11px] text-gray-400 dark:text-zinc-500">Obsessed with great products, great taste</div>
+                </div>
+                <div className="flex items-center gap-2 ml-1">
+                  <a href="https://www.linkedin.com/in/satya-dileep-kumar-thotakura-9b25021b/" target="_blank" className="w-7 h-7 grid place-items-center rounded-full bg-[#0A66C2] text-white hover:bg-[#004182] transition"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg></a>
+                  <a href="https://satyadileep.github.io" target="_blank" className="w-7 h-7 grid place-items-center rounded-full border border-gray-200 dark:border-zinc-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-zinc-800 transition text-[11px]">↗</a>
+                </div>
               </div>
             </div>
           </div>
