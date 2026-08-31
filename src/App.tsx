@@ -627,15 +627,29 @@ export default function App() {
         </main>
 
         {/* ══════ Footer ══════ */}
-        <footer className="max-w-[1280px] mx-auto px-4 pb-10 text-center text-xs text-gray-400 dark:text-zinc-500">
-          <div className="border-t border-white/70 dark:border-zinc-800 pt-6 flex flex-col items-center gap-2.5">
-            <div className="flex items-center gap-2 font-semibold text-gray-600 dark:text-zinc-300">
-              <span className="w-5 h-5 rounded-md bg-gradient-to-br from-[#0A66C2] to-indigo-500 grid place-items-center text-white text-[10px] font-bold shadow-[0_2px_8px_rgba(10,102,194,0.35)]">in</span>
-              Content Crafter
+        <footer className="max-w-[1280px] mx-auto px-4 pb-10 text-xs text-gray-500 dark:text-zinc-400">
+          <div className="border-t border-white/70 dark:border-zinc-800 pt-6">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="flex items-center gap-2 font-semibold text-gray-600 dark:text-zinc-300">
+                <span className="w-5 h-5 rounded-md bg-gradient-to-br from-[#0A66C2] to-indigo-500 grid place-items-center text-white text-[10px] font-bold shadow-[0_2px_8px_rgba(10,102,194,0.35)]">in</span>
+                Content Crafter
+              </div>
+              <div className="max-w-[520px] leading-5">
+                Build in public by <a href={linkedinUrl} target="_blank" className="underline hover:text-gray-600 dark:hover:text-zinc-300 transition">Satya Dileep</a> · MIT · Open Source<br />
+                No servers, no tracking, no account — your content never leaves your browser.
+              </div>
             </div>
-            <div className="max-w-[520px] leading-5">
-              Build in public by <a href={linkedinUrl} target="_blank" className="underline hover:text-gray-600 dark:hover:text-zinc-300 transition">Satya Dileep</a> · MIT · Open Source<br />
-              No servers, no tracking, no account — your content never leaves your browser.
+            <div className="mt-6 mx-auto max-w-[720px] rounded-2xl border border-gray-200/70 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 backdrop-blur p-4 flex gap-4 text-left">
+              <img src={resolvedAvatar} alt="" className="w-12 h-12 rounded-full object-cover shrink-0 border border-gray-200 dark:border-zinc-700" />
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-gray-900 dark:text-zinc-100">An initiative by Satya Dileep Kumar Thotakura</div>
+                <div className="text-xs leading-5 text-gray-600 dark:text-zinc-400 mt-1">Senior Product Manager @ Pegasystems — 13+ years building enterprise low-code &amp; GenAI/Agentic AI. I build browser-first, zero-setup tools that ship. Philosophy: <span className="font-medium text-gray-700 dark:text-zinc-300">Conductor of Agents</span> &amp; <span className="font-medium text-gray-700 dark:text-zinc-300">Vibe Coding &gt; Vibe Wishing</span> — structured, intent-driven, outcome over exploration. Hyderabad · Pragmatic Builder.</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <a href="https://www.linkedin.com/in/satya-dileep-kumar-thotakura-9b25021b/" target="_blank" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0A66C2] text-white text-xs font-medium hover:bg-[#004182] transition"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> LinkedIn</a>
+                  <a href="https://satyadileep.github.io" target="_blank" className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-gray-200 dark:border-zinc-700 text-xs font-medium hover:bg-gray-50 dark:hover:bg-zinc-800 transition">Portfolio ↗</a>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 dark:bg-zinc-800 text-xs">Low-Code • GenAI • Agentic AI • DX</span>
+                </div>
+              </div>
             </div>
           </div>
         </footer>
