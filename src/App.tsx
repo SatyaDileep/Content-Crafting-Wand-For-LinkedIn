@@ -48,7 +48,17 @@ const GRADIENTS = [
 
 /* ── Theme hook ────────────────────────────────────── */
 function useTheme() {
-  const [dark, setDark] = useState(false)
+  const [dark, setDark] = useState(() => {
+    try {
+      const s = localStorage.getItem("cc_theme")
+      if (s) return s === "dark"
+      return window.matchMedia("(prefers-color-scheme: dark)").matches
+    } catch { return false }
+  })
+  useEffect(() => {
+    try { localStorage.setItem("cc_theme", dark ? "dark" : "light") } catch {}
+    document.documentElement.classList.toggle("dark", dark)
+  }, [dark])
   return [dark, setDark] as const
 }
 
@@ -261,8 +271,8 @@ export default function App() {
                 }`}>
                 {aiKey ? `✓ ${PROVIDER_LABELS[aiProvider]} AI Active` : "⚙ Enable AI"}
               </button>
-              <button onClick={() => setDark(!dark)}
-                className="w-8 h-8 grid place-items-center rounded-full border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 transition text-sm">
+              <button onClick={() => setDark(d => !d)}
+                className="w-8 h-8 grid place-items-center rounded-full border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 transition text-sm" aria-label="Toggle theme">
                 {dark ? "☀️" : "🌙"}
               </button>
             </div>
