@@ -160,7 +160,7 @@ Anonymized, DNT-respected: `copy_preview, copy_caption, emoji_click, ai_click, a
 
 <div style="display:flex;gap:12px;align-items:center">
   <div>
-    <strong>Satya Dileep Kumar Thotakura</strong> — Senior Product Manager @ Pegasystems, 13+ years building enterprise low-code & GenAI/Agentic AI. <em>Conductor of Agents</em> & <em>Vibe Coding > Vibe Wishing</em> — browser-first, zero-setup, outcome over exploration. Hyderabad · Pragmatic Builder.
+    <strong>Satya Dileep Kumar Thotakura</strong> — Senior Product Manager @ Pegasystems — product builder obsessed with crafting great products with great taste. 13+ years in enterprise low-code & GenAI. Hyderabad.
   </div>
 </div>
 
