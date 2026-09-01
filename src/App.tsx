@@ -287,16 +287,16 @@ export default function App() {
 
   return (
     <div className={dark ? "dark" : ""}>
-      <div className="min-h-screen isolate bg-[#f6f7fb] dark:bg-[#0e0f12] text-gray-900 dark:text-zinc-100 transition-colors duration-200 relative overflow-x-clip">
-        {/* Ambient color blobs (glass glow) */}
-        <div className="fixed inset-0 pointer-events-none -z-10">
-          <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-[#0A66C2]/8 blur-3xl" />
-          <div className="absolute top-1/4 -right-40 w-[560px] h-[560px] rounded-full bg-slate-400/6 blur-3xl" />
-          <div className="absolute bottom-[-160px] left-1/3 w-[520px] h-[520px] rounded-full bg-zinc-300/6 blur-3xl" />
+      <div className="min-h-screen isolate bg-[#f6f7fb] dark:bg-[#09090b] text-gray-900 dark:text-zinc-100 transition-colors duration-300 relative overflow-x-clip">
+        <div className="fixed inset-0 pointer-events-none -z-10 transition-opacity duration-300">
+          <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-[#0A66C2]/[0.07] dark:bg-[#0A66C2]/[0.14] blur-3xl transition-colors duration-300" />
+          <div className="absolute top-1/4 -right-40 w-[560px] h-[560px] rounded-full bg-slate-400/5 dark:bg-violet-600/10 blur-3xl transition-colors duration-300" />
+          <div className="absolute bottom-[-160px] left-1/3 w-[520px] h-[520px] rounded-full bg-zinc-300/5 dark:bg-indigo-500/8 blur-3xl transition-colors duration-300" />
+          <div className="absolute inset-0 dark:bg-[radial-gradient(ellipse_800px_600px_at_50%_-100px,rgba(120,119,198,0.08),transparent_70%)] opacity-0 dark:opacity-100 transition-opacity duration-500" />
         </div>
 
         {/* ══════ Header ══════ */}
-        <header className="sticky top-0 z-30 bg-white/70 dark:bg-[#111113]/70 backdrop-blur-xl border-b border-[rgba(0,0,0,0.05)] dark:border-zinc-800 shadow-[0_1px_20px_rgba(15,23,42,0.04)]">
+        <header className="sticky top-0 z-30 bg-white/75 dark:bg-zinc-900/75 backdrop-blur-xl border-b border-[rgba(0,0,0,0.05)] dark:border-zinc-800/80 shadow-[0_1px_20px_rgba(15,23,42,0.04)] dark:shadow-[0_1px_24px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors duration-300">
           <div className="max-w-[1280px] mx-auto px-4 h-14 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0A66C2] to-indigo-500 grid place-items-center text-white font-bold text-sm shrink-0 shadow-[0_2px_12px_rgba(10,102,194,0.4)]">in</div>
@@ -324,8 +324,22 @@ export default function App() {
                 {aiKey ? `✓ ${PROVIDER_LABELS[aiProvider]} AI Active` : "⚙ Enable AI"}
               </button>
               <button onClick={() => setDark(d => !d)}
-                className="w-8 h-8 grid place-items-center rounded-full border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 transition text-sm shrink-0" aria-label="Toggle theme">
-                {dark ? "☀️" : "🌙"}
+                aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+                title={dark ? "Light mode" : "Dark mode"}
+                className={`relative inline-flex items-center h-8 w-[58px] rounded-full p-1 shrink-0 border transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0A66C2]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-900 ${dark ? "bg-gradient-to-br from-zinc-800 to-zinc-900 border-zinc-700 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4),0_1px_8px_rgba(0,0,0,0.2)]" : "bg-gradient-to-br from-amber-50 to-orange-100 border-amber-200/70 shadow-[inset_0_1px_2px_rgba(251,146,60,0.15),0_1px_8px_rgba(251,146,60,0.12)]"}`}>
+                <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none" aria-hidden>
+                  <span className={`absolute left-1.5 top-1.5 w-1 h-1 rounded-full bg-white/80 transition-opacity duration-300 ${dark ? "opacity-30" : "opacity-0"}`} />
+                  <span className={`absolute left-3 top-3 w-0.5 h-0.5 rounded-full bg-white/60 transition-opacity duration-300 ${dark ? "opacity-40" : "opacity-0"}`} />
+                </span>
+                <span className={`absolute inset-y-1 w-6 h-6 rounded-full grid place-items-center shadow-[0_1px_6px_rgba(0,0,0,0.18),0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${dark ? "translate-x-[28px] bg-gradient-to-br from-zinc-100 to-zinc-300 text-zinc-800" : "translate-x-0 bg-gradient-to-br from-amber-400 to-orange-500 text-white"}`}>
+                  {dark ? (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                  ) : (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v1"/><path d="M12 21v1"/><path d="M4.93 4.93l0.7 0.7"/><path d="M18.36 18.36l0.7 0.7"/><path d="M2 12h1"/><path d="M21 12h1"/><path d="M4.93 19.07l0.7-.7"/><path d="M18.36 5.64l0.7-.7"/></svg>
+                  )}
+                </span>
+                <span className={`absolute left-2 text-[10px] leading-none transition-all duration-300 ${dark ? "opacity-0 scale-75" : "opacity-100 scale-100"}`}>☀️</span>
+                <span className={`absolute right-2 text-[10px] leading-none transition-all duration-300 ${dark ? "opacity-100 scale-100" : "opacity-0 scale-75"}`}>🌙</span>
               </button>
             </div>
           </div>

@@ -12,8 +12,11 @@
 }
 
 * { font-family: var(--font-sans); }
-body { background: #f8f8f6; color: #18181b; }
-.dark body { background: #111113; color: #f4f4f5; }
+body { background: #f8f8f6; color: #18181b; transition: background-color 300ms, color 300ms; }
+.dark body { background: #09090b; color: #f4f4f5; }
+html.dark { color-scheme: dark; }
+::selection { background: rgba(10,102,194,0.18); }
+.dark ::selection { background: rgba(99,102,241,0.28); }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
