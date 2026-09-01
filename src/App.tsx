@@ -124,8 +124,28 @@ export default function App() {
     if (h) { const d = decodeShare(h); if (d?.content) setContent(d.content); if (d?.cardTitle) setCardTitle(d.cardTitle) }
   }, [])
   useEffect(() => {
-    const t = setTimeout(() => { try { localStorage.setItem("cc_current_content", content) } catch {} }, 500)
+    const t = setTimeout(() => { try { localStorage.setItem("cc_current_content", content); setLastSaved(Date.now()) } catch {} }, 500)
     return () => clearTimeout(t)
+  }, [content])
+  useEffect(() => {
+    const before = (e: BeforeUnloadEvent) => { if (content !== DEFAULT_POST && content.trim()) { e.preventDefault(); e.returnValue = "" } }
+    window.addEventListener("beforeunload", before)
+    return () => window.removeEventListener("beforeunload", before)
+  }, [content])
+  useEffect(() => {
+    const onSel = () => {
+      const el = editorRef.current
+      if (!el) { setBubble(null); return }
+      const s = el.selectionStart, e = el.selectionEnd
+      if (s === e || document.activeElement !== el) { setBubble(null); return }
+      const rect = el.getBoundingClientRect()
+      const txt = content.slice(s, e)
+      if (!txt.trim()) { setBubble(null); return }
+      setBubble({ x: rect.left + rect.width / 2, y: rect.top - 8, text: txt })
+    }
+    document.addEventListener("mouseup", onSel)
+    document.addEventListener("keyup", onSel)
+    return () => { document.removeEventListener("mouseup", onSel); document.removeEventListener("keyup", onSel) }
   }, [content])
 
   /* Card state */
@@ -152,6 +172,8 @@ export default function App() {
   const [drafts, setDrafts] = useState(() => { try { return loadDrafts() } catch { return [] } })
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
+  const [bubble, setBubble] = useState<{ x: number; y: number; text: string } | null>(null)
+  const [lastSaved, setLastSaved] = useState<number | null>(null)
 
   /* Derived */
   const unicode = useMemo(() => markdownToUnicode(content), [content])
@@ -274,7 +296,7 @@ export default function App() {
         </div>
 
         {/* ══════ Header ══════ */}
-        <header className="sticky top-0 z-30 bg-white/70 dark:bg-[#111113]/70 backdrop-blur-xl border-b border-white/70 dark:border-zinc-800 shadow-[0_1px_20px_rgba(15,23,42,0.04)]">
+        <header className="sticky top-0 z-30 bg-white/70 dark:bg-[#111113]/70 backdrop-blur-xl border-b border-[rgba(0,0,0,0.05)] dark:border-zinc-800 shadow-[0_1px_20px_rgba(15,23,42,0.04)]">
           <div className="max-w-[1280px] mx-auto px-4 h-14 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0A66C2] to-indigo-500 grid place-items-center text-white font-bold text-sm shrink-0 shadow-[0_2px_12px_rgba(10,102,194,0.4)]">in</div>
@@ -283,28 +305,26 @@ export default function App() {
                 <div className="text-[11px] text-gray-500 dark:text-zinc-400 leading-tight">Private • No tracking • No signup</div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {LINKEDIN_CLIENT_ID ? (
+            <div className="flex items-center gap-2 self-center">
+              {LINKEDIN_CLIENT_ID && (
                 linkedIn ? (
-                  <button onClick={() => { localStorage.removeItem("cc_linkedin_token"); setLinkedIn(false); track("linkedin_disconnect", {}) }} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#0A66C2] border border-[#0A66C2] text-white hover:bg-[#004182] transition"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> LinkedIn ✓</button>
+                  <button onClick={() => { localStorage.removeItem("cc_linkedin_token"); setLinkedIn(false); track("linkedin_disconnect", {}) }} className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#0A66C2] border border-[#0A66C2] text-white hover:bg-[#004182] transition h-8"> <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> LinkedIn ✓</button>
                 ) : (
-                  <button onClick={() => { track("linkedin_connect_click", {}); beginLinkedInLogin() }} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-[#0A66C2] text-[#0A66C2] hover:bg-blue-50 transition"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> Connect LinkedIn</button>
+                  <button onClick={() => { track("linkedin_connect_click", {}); beginLinkedInLogin() }} className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-[#0A66C2] text-[#0A66C2] hover:bg-blue-50 transition h-8"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> Connect LinkedIn</button>
                 )
-              ) : (
-                <button onClick={shareToLinkedIn} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#0A66C2] text-white hover:bg-[#004182] transition"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> Post</button>
               )}
-              <button onClick={() => { const nd = upsertDraft(drafts, content); setDrafts(nd) }} className="text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">Save draft</button>
-              <button onClick={() => setDrawerOpen(v=>!v)} className="text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">Drafts ({drafts.length})</button>
-              <button onClick={async () => { const url = location.origin + location.pathname + "#share=" + encodeShare(content, { cardTitle, cardHeader }); await navigator.clipboard.writeText(url); setShareCopied(true); setTimeout(()=>setShareCopied(false),1500) }} className="text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">{shareCopied ? "✓ Link copied" : "Share link"}</button>
+              <button onClick={() => { const nd = upsertDraft(drafts, content); setDrafts(nd) }} className="hidden sm:inline-flex items-center justify-center text-xs font-semibold px-3 rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 h-8">Save draft</button>
+              <button onClick={() => setDrawerOpen(v=>!v)} className="inline-flex items-center justify-center text-xs font-semibold px-3 rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 h-8">Drafts ({drafts.length})</button>
+              <button title="Copies a URL with your draft encoded in the hash — no backend, anyone with the link sees your draft prefilled (like linkedinpreview.com shareable URLs)" onClick={async () => { const url = location.origin + location.pathname + "#share=" + encodeShare(content, { cardTitle, cardHeader }); try { await navigator.clipboard.writeText(url) } catch { const ta=document.createElement("textarea"); ta.value=url; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove() } ; setShareCopied(true); setTimeout(()=>setShareCopied(false),1800) }} className="hidden sm:inline-flex items-center justify-center text-xs font-semibold px-3 rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 h-8">{shareCopied ? "✓ Link copied" : "🔗 Share draft"}</button>
               <button onClick={() => setSettingsOpen(true)}
-                className={`text-xs font-semibold px-3.5 py-1.5 rounded-full border transition active:scale-95 ${aiKey
+                className={`inline-flex items-center justify-center text-xs font-semibold px-3.5 rounded-full border transition active:scale-95 h-8 ${aiKey
                   ? "bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-300/50 dark:ring-emerald-700/40 hover:border-emerald-300 dark:hover:border-emerald-700"
                   : "bg-[#0A66C2] border-[#0A66C2] text-white shadow-[0_1px_6px_rgba(10,102,194,0.35)] hover:bg-[#004182] hover:border-[#004182]"
                 }`}>
                 {aiKey ? `✓ ${PROVIDER_LABELS[aiProvider]} AI Active` : "⚙ Enable AI"}
               </button>
               <button onClick={() => setDark(d => !d)}
-                className="w-8 h-8 grid place-items-center rounded-full border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 transition text-sm" aria-label="Toggle theme">
+                className="w-8 h-8 grid place-items-center rounded-full border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 transition text-sm shrink-0" aria-label="Toggle theme">
                 {dark ? "☀️" : "🌙"}
               </button>
             </div>
@@ -367,36 +387,39 @@ export default function App() {
                     </div>
                     <div className="border-y border-gray-200/60 dark:border-zinc-800">
                       <AiBar text={content} onResult={setContent} onBusy={setGlobalAi} />
-                      <div className="px-3 py-2 flex flex-wrap gap-1 border-y border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
-                        {([
-                          ["𝐁 Bold", "**", "wrap"],
-                          ["𝐼 Italic", "*", "wrap"],
-                          ["S̶ Strike", "~~", "wrap"],
-                          ["U̲ Under", "__", "wrap"],
-                          ["𝙼 Mono", "`", "wrap"],
-                          ["• Bullet", "• ", "insert"],
-                          ["→ Arrow", " → ", "insert"],
-                          ["# Tag", " #", "insert"],
-                        ] as const).map(([label, text, type]) => (
-                          <button key={label}
-                            onClick={() => type === "wrap" ? insertWrap(text) : insertAtCursor(text)}
-                            className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition">
-                            {label}
-                          </button>
-                        ))}
-                        <div className="w-px bg-gray-200 dark:bg-zinc-700 mx-1 self-stretch" />
+                      <div className="px-3 py-2 flex flex-wrap items-center gap-1 border-y border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
+                        <button title="Bold (Ctrl+B)" onClick={() => insertWrap("**")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 014 4 4 4 0 01-2 3.5 4.5 4.5 0 014 4.5A4.5 4.5 0 0115.5 20H6z"/><path d="M6 8h12M6 16h12" opacity="0.0"/></svg></button>
+                        <button title="Italic (Ctrl+I)" onClick={() => insertWrap("*")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg></button>
+                        <button title="Strikethrough" onClick={() => insertWrap("~~")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 4H9a3 3 0 00-3 3v1h12"/><path d="M8 12h8"/><path d="M16 16a3 3 0 013 3v1H9a3 3 0 01-3-3v-1h12"/></svg></button>
+                        <button title="Underline (Ctrl+U)" onClick={() => insertWrap("__")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4v6a6 6 0 006 6 6 6 0 006-6V4"/><path d="M4 20h16"/></svg></button>
+                        <button title="Monospace" onClick={() => insertWrap("`")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></button>
+                        <div className="w-px h-6 bg-gray-200 dark:bg-zinc-700 mx-1 self-center shrink-0" />
+                        <button title="Bullet" onClick={() => insertAtCursor("• ")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.5"/></svg></button>
+                        <button title="Arrow" onClick={() => insertAtCursor(" → ")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+                        <button title="Hashtag" onClick={() => insertAtCursor(" #")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="9" y1="4" x2="7" y2="20"/><line x1="15" y1="4" x2="13" y2="20"/><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/></svg></button>
+                        <button title="Emoji" onClick={() => insertAtCursor(" ✨ ")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><span className="text-[11px] leading-none">✨</span></button>
+                        <div className="w-px h-6 bg-gray-200 dark:bg-zinc-700 mx-1 self-center shrink-0 hidden sm:block" />
                         {["😊", "👉", "✨"].map(e => (
-                          <button key={e} onClick={() => insertAtCursor(` ${e} `)} className="px-2 py-1.5 text-xs rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition">{e}</button>
+                          <button key={e} onClick={() => insertAtCursor(` ${e} `)} className="p-2 text-xs rounded-[4px] hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition">{e}</button>
                         ))}
                       </div>
                       <div className="px-3 py-1.5 flex flex-wrap gap-1 bg-white dark:bg-zinc-900 border-b border-gray-200/60 dark:border-zinc-800">
                         {["•","◈","◎","→","↳","↓","✓","📌","♻️"].map(s => (
-                          <button key={s} onClick={() => insertAtCursor(s + " ")} className="px-2 py-1 text-xs rounded border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800">{s}</button>
+                          <button key={s} onClick={() => insertAtCursor(s + " ")} className="p-2 text-xs rounded-[4px] border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 active:scale-95 transition">{s}</button>
                         ))}
                       </div>
-                      <textarea ref={editorRef} value={content} onKeyDown={handleKeyDown} onPaste={handlePaste} onChange={e => setContent(e.target.value)} placeholder="Card body — also your LinkedIn caption… (Ctrl+B bold, Ctrl+I italic, Ctrl+U underline)" className="w-full min-h-[180px] p-4 text-[14px] leading-6 outline-none resize-y bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
-                      <div className="px-4 py-2 flex items-center gap-3 text-[11px] text-gray-400 dark:text-zinc-500 border-t border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
+                      <textarea ref={editorRef} value={content} onKeyDown={handleKeyDown} onPaste={handlePaste} onChange={e => setContent(e.target.value)} placeholder="Card body — also your LinkedIn caption… (Ctrl+B bold, Ctrl+I italic, Ctrl+U underline)" className="w-full min-h-[180px] p-4 text-[14px] leading-[1.6] outline-none resize-y bg-white dark:bg-zinc-900 focus:bg-transparent focus:ring-2 focus:ring-blue-500/30 focus:border-transparent text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 transition" />
+                      {fold.isFolded && (
+                        <div className="mx-3 my-1 flex items-center gap-2 text-[11px]">
+                          <span className="flex-1 border-t-2 border-dashed border-amber-300" />
+                          <span className="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 whitespace-nowrap">✂️ LinkedIn Fold (…see more) {fold.isEarlyFold ? "· Fold triggered by line break" : `· ${FOLD_CONFIGS[viewport].chars}ch/${FOLD_CONFIGS[viewport].maxLines} lines`}</span>
+                          <span className="flex-1 border-t-2 border-dashed border-amber-300" />
+                        </div>
+                      )}
+                      <button onClick={() => { const el = editorRef.current; const sel = el ? content.slice(el.selectionStart, el.selectionEnd) || content.split("\n").find(l=>l.trim()) || content.slice(0,120) : content.slice(0,120); setThought(sel.slice(0,140)); setTab("card"); setCardTab("compose") }} className="mx-3 mb-2 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-violet-600 text-white hover:bg-violet-700">⚡ Send Hook to Card Studio</button>
+                      <div className="mx-0 px-4 py-2 flex flex-wrap items-center gap-3 text-[11px] font-normal text-gray-400 dark:text-zinc-500 border-t border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
                         <span>{stats.words} words</span><span>·</span><span>{stats.lines} lines</span><span>·</span><span>{stats.chars}/3000</span><span>·</span><span>{stats.readingLabel}</span>
+                        {lastSaved && <><span>·</span><span className="text-emerald-600">✓ Saved locally {new Date(lastSaved).toLocaleTimeString()}</span></>}
                         {unicodeRatio(markdownToUnicode(content)) > 0.3 && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">⚠️ {Math.round(unicodeRatio(markdownToUnicode(content))*100)}% unicode — keep styling on hooks</span>}
                       </div>
                     </div>
@@ -480,40 +503,43 @@ export default function App() {
                   {editorTab === "write" ? (
                     <>
                       <AiBar text={content} onResult={setContent} onBusy={setGlobalAi} />
-                      <div className="px-3 py-2 flex flex-wrap gap-1 border-b border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
-                        {([
-                          ["𝐁 Bold", "**", "wrap"],
-                          ["𝐼 Italic", "*", "wrap"],
-                          ["S̶ Strike", "~~", "wrap"],
-                          ["U̲ Under", "__", "wrap"],
-                          ["𝙼 Mono", "`", "wrap"],
-                          ["• Bullet", "• ", "insert"],
-                          ["→ Arrow", " → ", "insert"],
-                          ["# Tag", " #", "insert"],
-                        ] as const).map(([label, text, type]) => (
-                          <button key={label}
-                            onClick={() => type === "wrap" ? insertWrap(text) : insertAtCursor(text)}
-                            className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition">
-                            {label}
-                          </button>
-                        ))}
-                        <div className="w-px bg-gray-200 dark:bg-zinc-700 mx-1 self-stretch" />
+                      <div className="px-3 py-2 flex flex-wrap items-center gap-1 border-b border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
+                        <button title="Bold (Ctrl+B)" onClick={() => insertWrap("**")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 014 4 4 4 0 01-2 3.5 4.5 4.5 0 014 4.5A4.5 4.5 0 0115.5 20H6z"/><path d="M6 8h12M6 16h12" opacity="0.0"/></svg></button>
+                        <button title="Italic (Ctrl+I)" onClick={() => insertWrap("*")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg></button>
+                        <button title="Strikethrough" onClick={() => insertWrap("~~")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 4H9a3 3 0 00-3 3v1h12"/><path d="M8 12h8"/><path d="M16 16a3 3 0 013 3v1H9a3 3 0 01-3-3v-1h12"/></svg></button>
+                        <button title="Underline (Ctrl+U)" onClick={() => insertWrap("__")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4v6a6 6 0 006 6 6 6 0 006-6V4"/><path d="M4 20h16"/></svg></button>
+                        <button title="Monospace" onClick={() => insertWrap("`")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></button>
+                        <div className="w-px h-6 bg-gray-200 dark:bg-zinc-700 mx-1 self-center shrink-0" />
+                        <button title="Bullet" onClick={() => insertAtCursor("• ")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.5"/></svg></button>
+                        <button title="Arrow" onClick={() => insertAtCursor(" → ")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+                        <button title="Hashtag" onClick={() => insertAtCursor(" #")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="9" y1="4" x2="7" y2="20"/><line x1="15" y1="4" x2="13" y2="20"/><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/></svg></button>
+                        <button title="Emoji" onClick={() => insertAtCursor(" ✨ ")} className="p-2 rounded-[4px] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition"><span className="text-[11px] leading-none">✨</span></button>
+                        <div className="w-px h-6 bg-gray-200 dark:bg-zinc-700 mx-1 self-center shrink-0 hidden sm:block" />
                         {["😊", "👉", "✨"].map(e => (
-                          <button key={e} onClick={() => insertAtCursor(` ${e} `)} className="px-2 py-1.5 text-xs rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition">{e}</button>
+                          <button key={e} onClick={() => insertAtCursor(` ${e} `)} className="p-2 text-xs rounded-[4px] hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition">{e}</button>
                         ))}
                       </div>
                       <div className="px-3 py-1.5 flex flex-wrap gap-1 bg-white dark:bg-zinc-900 border-b border-gray-200/60 dark:border-zinc-800">
                         {["•","◈","◎","→","↳","↓","✓","📌","♻️"].map(s => (
-                          <button key={s} onClick={() => insertAtCursor(s + " ")} className="px-2 py-1 text-xs rounded border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800">{s}</button>
+                          <button key={s} onClick={() => insertAtCursor(s + " ")} className="p-2 text-xs rounded-[4px] border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 active:scale-95 transition">{s}</button>
                         ))}
                       </div>
-                      <textarea ref={editorRef} value={content} onKeyDown={handleKeyDown} onPaste={handlePaste} onChange={e => setContent(e.target.value)} placeholder="Write your LinkedIn post… (Ctrl+B/I/U)" className="w-full min-h-[240px] p-4 text-[14px] leading-6 outline-none resize-y bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
-                      <div className="px-4 py-2 flex items-center gap-3 text-[11px] text-gray-400 dark:text-zinc-500 border-t border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
+                      <textarea ref={editorRef} value={content} onKeyDown={handleKeyDown} onPaste={handlePaste} onChange={e => setContent(e.target.value)} placeholder="Write your LinkedIn post… (Ctrl+B/I/U)" className="w-full min-h-[240px] p-4 text-[14px] leading-[1.6] outline-none resize-y bg-white dark:bg-zinc-900 focus:bg-transparent focus:ring-2 focus:ring-blue-500/30 focus:border-transparent text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 transition" />
+                      {fold.isFolded && (
+                        <div className="mx-3 my-1 flex items-center gap-2 text-[11px]">
+                          <span className="flex-1 border-t-2 border-dashed border-amber-300" />
+                          <span className="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 whitespace-nowrap">✂️ LinkedIn Fold (…see more) {fold.isEarlyFold ? "· Fold triggered by line break" : ""}</span>
+                          <span className="flex-1 border-t-2 border-dashed border-amber-300" />
+                        </div>
+                      )}
+                      <button onClick={() => { const el = editorRef.current; const sel = el ? content.slice(el.selectionStart, el.selectionEnd) || content.split("\n").find(l=>l.trim()) || content.slice(0,120) : content.slice(0,120); setThought(sel.slice(0,140)); setTab("card"); setCardTab("compose") }} className="mx-3 mb-2 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-violet-600 text-white hover:bg-violet-700">⚡ Send Hook to Card Studio</button>
+                      <div className="mx-0 px-4 py-2 flex flex-wrap items-center gap-3 text-[11px] font-normal text-gray-400 dark:text-zinc-500 border-t border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
                         <span>{stats.words} words</span><span>·</span><span>{stats.lines} lines</span><span>·</span><span>{stats.chars}/3000</span><span>·</span><span>{stats.readingLabel}</span>
+                        {lastSaved && <><span>·</span><span className="text-emerald-600">✓ Saved locally {new Date(lastSaved).toLocaleTimeString()}</span></>}
                         {unicodeRatio(markdownToUnicode(content)) > 0.3 && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">⚠️ {Math.round(unicodeRatio(markdownToUnicode(content))*100)}% unicode</span>}
                       </div>
                       <div className="p-3">
-                        <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-zinc-500">Bold, italic & bullets → LinkedIn-safe Unicode</div>
+                        <div className="flex items-center gap-2 text-[11px] font-normal text-gray-400 dark:text-zinc-500">Bold, italic & bullets → LinkedIn-safe Unicode</div>
                       </div>
                     </>
                   ) : (
@@ -537,29 +563,25 @@ export default function App() {
             {/* ═══ Feed Preview Tab ═══ */}
             {tab === "preview" && (
               <>
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-[#0A66C2]" />
                     <div>
-                      <div className="text-sm font-bold text-gray-800 dark:text-zinc-200">Feed Preview — how LinkedIn will show it</div>
-                      <div className="text-[11px] text-gray-400 dark:text-zinc-500">Realistic rendering · {FOLD_CONFIGS[viewport].chars}ch / {FOLD_CONFIGS[viewport].maxLines} lines · {viewport}</div>
+                      <div className="text-sm font-bold text-gray-800 dark:text-zinc-200">Preview</div>
+                      <div className="text-[11px] text-gray-400 dark:text-zinc-500">Exactly as on LinkedIn · {viewport === "desktop" ? "Desktop" : "Mobile"}</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <div className="flex p-1 rounded-full bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700">
                       {(["desktop", "mobile"] as const).map(v => (
-                        <button key={v} onClick={() => setViewport(v)} className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition ${viewport === v ? "bg-[#0A66C2] text-white shadow" : "text-gray-500 dark:text-zinc-400"}`}>{v === "desktop" ? "Desktop 560" : "Mobile 375"}</button>
+                        <button key={v} onClick={() => setViewport(v)} className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition ${viewport === v ? "bg-[#0A66C2] text-white shadow" : "text-gray-500 dark:text-zinc-400"}`}>{v === "desktop" ? "💻 Desktop (560px)" : "📱 Mobile (375px)"}</button>
                       ))}
                     </div>
                     <button onClick={() => copyUnicode("preview")}
-                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded-full border transition active:scale-95 ${copied ? "bg-emerald-500 border-emerald-500 text-white" : "bg-[#0A66C2] border-[#0A66C2] text-white hover:bg-[#004182] hover:border-[#004182] shadow-[0_1px_6px_rgba(10,102,194,0.3)]"}`}>
-                      {copied ? "✓ Copied" : "⎘ Copy for LinkedIn"}
+                      className={`inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded-full border transition active:scale-95 min-w-[96px] ${copied ? "bg-emerald-500 border-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.6)]" : "bg-white dark:bg-zinc-900 border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800"}`}>
+                      {copied ? "✓ Copied!" : "📋 Copy"}
                     </button>
-                    <button onClick={shareToLinkedIn} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#0A66C2] text-white hover:bg-[#004182] transition active:scale-95"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> Post</button>
-                    <button onClick={() => setExpanded(!expanded)} aria-expanded={expanded}
-                      className="text-xs px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
-                      {expanded ? "Show less" : "…see more"}
-                    </button>
+                    <button onClick={shareToLinkedIn} className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded-full bg-[#0A66C2] text-white hover:bg-[#004182] transition active:scale-95 min-w-[128px]"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> Post to LinkedIn</button>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 text-[11px] px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800">
@@ -571,10 +593,10 @@ export default function App() {
 
                 {/* Feed card */}
                 <div className={`mx-auto transition-all ${viewport === "mobile" ? "max-w-[375px]" : "max-w-[560px]"}`}>
-                  <div className="rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-sm bg-white dark:bg-zinc-900">
+                  <div className="rounded-xl border border-[#e0dfdc] dark:border-zinc-800 overflow-hidden shadow-sm bg-white dark:bg-zinc-900">
                     {/* Post header */}
                     <div className="p-3 flex gap-3">
-                      <img src={resolvedAvatar || avatar} alt="avatar" className="w-12 h-12 rounded-full object-cover shrink-0" />
+                      <img src={resolvedAvatar || avatar} alt="avatar" className="w-12 h-12 rounded-full object-cover shrink-0 ring-1 ring-black/5" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -591,16 +613,15 @@ export default function App() {
                     </div>
 
                     {/* Post body */}
-                    <div className="px-3 pb-3 text-[14px] leading-[1.45] break-words text-gray-900 dark:text-zinc-100">
+                    <div className="px-3 pb-3 text-[14px] leading-[1.6] break-words text-gray-900 dark:text-zinc-100">
                       {!expanded && pastFold ? (
-                        <>
-                          <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: markdownToHtml(beforeFold) }} />
-                          <span className="text-gray-400">…</span>
-                          <button onClick={() => setExpanded(true)} className="ml-1 text-gray-500 dark:text-zinc-400 hover:underline text-[14px]">…see more</button>
-                        </>
+                        <span className="whitespace-pre-wrap inline" dangerouslySetInnerHTML={{ __html: markdownToHtml(beforeFold) + '<span class="text-gray-400">…</span>' }} />
+                      ) : null}
+                      {!expanded && pastFold ? (
+                        <button onClick={() => setExpanded(true)} className="inline text-gray-500 dark:text-zinc-400 hover:underline text-[14px] ml-1">…see more</button>
                       ) : (
                         <>
-                          <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: markdownToHtml(content || "Your post will appear here…") }} />
+                          <span className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: markdownToHtml(content || "Your post will appear here…") }} />
                           {expanded && pastFold && (
                             <button onClick={() => setExpanded(false)} className="ml-1 text-gray-500 dark:text-zinc-400 hover:underline text-[14px]">Show less</button>
                           )}
@@ -609,7 +630,7 @@ export default function App() {
                     </div>
 
                     {/* Reactions */}
-                    <div className="px-3 pb-2 flex items-center justify-between text-[12px] text-gray-500 dark:text-zinc-400 border-t border-gray-100 dark:border-zinc-800 pt-2">
+                    <div className="px-3 pb-2 flex items-center justify-between text-[12px] text-gray-500 dark:text-zinc-400 border-t border-gray-200 dark:border-zinc-800 pt-2">
                       <div className="flex items-center gap-1">
                         <span className="w-5 h-5 rounded-full bg-[#0A66C2] grid place-items-center text-white text-[10px]">👍</span>
                         <span className="w-5 h-5 rounded-full bg-red-500 grid place-items-center text-white text-[10px] -ml-1">❤️</span>
@@ -619,7 +640,7 @@ export default function App() {
                     </div>
 
                     {/* Action bar */}
-                    <div className="grid grid-cols-4 border-t border-gray-100 dark:border-zinc-800 text-sm">
+                    <div className="grid grid-cols-4 border-t border-gray-200 dark:border-zinc-800 text-sm">
                       {["👍 Like", "💬 Comment", "↗ Repost", "✉ Send"].map(lab => (
                         <button key={lab} className="py-2.5 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-zinc-800 text-gray-600 dark:text-zinc-400 font-medium text-xs transition">
                           {lab}
@@ -712,19 +733,19 @@ export default function App() {
         {/* ══════ Footer ══════ */}
         <footer className="max-w-[1280px] mx-auto px-4 pb-10">
           <div className="border-t border-gray-200/50 dark:border-zinc-800 pt-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#0A66C2] to-indigo-500 grid place-items-center text-white font-bold text-xs shadow-sm">in</div>
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 md:items-center">
+              <div className="flex items-center gap-3 self-center">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#0A66C2] to-indigo-500 grid place-items-center text-white font-bold text-xs shadow-sm shrink-0">in</div>
                 <div className="text-left">
                   <div className="text-sm font-semibold text-gray-900 dark:text-zinc-100 leading-none">Content Crafter</div>
-                  <div className="text-xs text-gray-500 dark:text-zinc-400">Private by design — your content never leaves your browser · MIT</div>
+                  <div className="text-xs font-normal text-gray-500 dark:text-zinc-400">Private by design — your content never leaves your browser · MIT</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <img src={resolvedAvatar} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-200 dark:border-zinc-700" />
+              <div className="flex items-center gap-3 self-center">
+                <img src={resolvedAvatar} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-200 dark:border-zinc-700 shrink-0" />
                 <div className="text-left hidden sm:block">
                   <div className="text-xs font-medium text-gray-700 dark:text-zinc-300 leading-none">Satya Dileep <span className="font-normal text-gray-500">· PM @ Pegasystems, Hyderabad</span></div>
-                  <div className="text-[11px] text-gray-400 dark:text-zinc-500">Obsessed with great products, great taste</div>
+                  <div className="text-[11px] font-normal text-gray-500 dark:text-zinc-500">Obsessed with great products, great taste</div>
                 </div>
                 <div className="flex items-center gap-2 ml-1">
                   <a href="https://www.linkedin.com/in/satya-dileep-kumar-thotakura-9b25021b/" target="_blank" className="w-7 h-7 grid place-items-center rounded-full bg-[#0A66C2] text-white hover:bg-[#004182] transition"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg></a>
@@ -758,6 +779,14 @@ export default function App() {
           </div>
         )}
 
+        {bubble && (
+          <div className="fixed z-40 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1.5 rounded-xl bg-gray-900 text-white shadow-xl border border-white/10" style={{ left: bubble.x, top: bubble.y }}>
+            <button onMouseDown={e=>{e.preventDefault(); const el=editorRef.current; if(!el){return} const s=el.selectionStart,e2=el.selectionEnd; const sel=content.slice(s,e2); const w="**"; const next=content.slice(0,s)+w+sel+w+content.slice(e2); setContent(next)}} className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white/10 hover:bg-white/20">𝗕 Bold</button>
+            <button onMouseDown={e=>{e.preventDefault(); const el=editorRef.current; if(!el)return; const s=el.selectionStart,e2=el.selectionEnd; const sel=content.slice(s,e2); const next=content.slice(0,s)+"*"+sel+"*"+content.slice(e2); setContent(next)}} className="px-2.5 py-1 text-xs italic rounded-lg bg-white/10 hover:bg-white/20">𝘪 Italic</button>
+            <button onMouseDown={e=>{e.preventDefault(); insertAtCursor("• ")}} className="px-2 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20">• Bullet</button>
+            <button onMouseDown={e=>{e.preventDefault(); setThought(bubble.text.slice(0,140)); setTab("card"); setCardTab("compose"); setBubble(null)}} className="px-2.5 py-1 text-xs rounded-lg bg-violet-600 hover:bg-violet-500">🎨 Make Quote Card</button>
+          </div>
+        )}
         {globalAi && (
           <div className="fixed inset-0 z-40 grid place-items-center bg-white/30 dark:bg-black/30 backdrop-blur-[6px] p-4">
             <div className="w-full max-w-sm rounded-2xl bg-white/85 dark:bg-zinc-900/85 backdrop-blur-xl border border-white/60 dark:border-zinc-700 shadow-[0_20px_60px_rgba(15,23,42,0.18)] p-6 text-center">
