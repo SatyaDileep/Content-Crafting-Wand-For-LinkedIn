@@ -1,16 +1,17 @@
 import { useRef, useState, useMemo, useEffect } from "react"
 import { toPng } from "html-to-image"
-import { markdownToUnicode, markdownToHtml } from "./lib/unicode"
+import { markdownToUnicode, markdownToHtml, unicodeRatio } from "./lib/unicode"
 import { callAI, PROVIDER_LABELS } from "./lib/gemini"
 import { useAuth } from "./lib/auth"
 import { track } from "./lib/telemetry"
 import { shareOnLinkedIn, postViaApi, beginLinkedInLogin, LINKEDIN_CLIENT_ID } from "./lib/linkedin"
+import { getFold, FOLD_CONFIGS } from "./lib/fold"
+import { getMetadata } from "./lib/metadata"
+import { loadDrafts, saveDrafts, upsertDraft } from "./lib/drafts"
+import { encodeShare, decodeShare, getHashPayload } from "./lib/serializer"
 import AiBar from "./components/AiBar"
 import SettingsModal from "./components/SettingsModal"
 import Carousel from "./components/Carousel"
-
-/* ── Constants ─────────────────────────────────────── */
-const FOLD = 210
 const FALLBACK_AVATAR = "data:image/svg+xml;utf8," + encodeURIComponent(
   "<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect width='100' height='100' fill='#cbd5e1'/><circle cx='50' cy='40' r='18' fill='#94a3b8'/><path d='M22 88 Q50 60 78 88' stroke='#94a3b8' stroke-width='12' fill='none' stroke-linecap='round'/></svg>"
 )
@@ -72,6 +73,7 @@ export default function App() {
   const [tab, setTab] = useState<"preview" | "card" | "carousel">("preview")
   const [dark, setDark] = useTheme()
   const [expanded, setExpanded] = useState(false)
+  const [viewport, setViewport] = useState<"desktop" | "mobile">("desktop")
 
   /* Editor state */
   const [content, setContent] = useState(DEFAULT_POST)
@@ -117,6 +119,14 @@ export default function App() {
         .finally(() => history.replaceState({}, "", location.pathname))
     }
   }, [])
+  useEffect(() => {
+    const h = getHashPayload()
+    if (h) { const d = decodeShare(h); if (d?.content) setContent(d.content); if (d?.cardTitle) setCardTitle(d.cardTitle) }
+  }, [])
+  useEffect(() => {
+    const t = setTimeout(() => { try { localStorage.setItem("cc_current_content", content) } catch {} }, 500)
+    return () => clearTimeout(t)
+  }, [content])
 
   /* Card state */
   const [gradient, setGradient] = useState(GRADIENTS[0])
@@ -125,6 +135,9 @@ export default function App() {
   const [thought, setThought] = useState("")
   const [cardWidth, setCardWidth] = useState(500)
   const [textColor, setTextColor] = useState("#f0f0f0")
+  const [cardPreset, setCardPreset] = useState<"free" | "1:1" | "4:5">("free")
+  const [safeZone, setSafeZone] = useState(false)
+  const [showAttribution, setShowAttribution] = useState(true)
 
   /* UI state */
   const [copied, setCopied] = useState(false)
@@ -136,18 +149,18 @@ export default function App() {
 
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
+  const [drafts, setDrafts] = useState(() => { try { return loadDrafts() } catch { return [] } })
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
 
   /* Derived */
   const unicode = useMemo(() => markdownToUnicode(content), [content])
   const cardHtml = useMemo(() => markdownToHtml(content), [content])
   const thoughtHtml = useMemo(() => markdownToHtml(thought), [thought])
-  const stats = useMemo(() => ({
-    chars: content.length,
-    words: content.trim() ? content.trim().split(/\s+/).length : 0,
-    lines: content.split("\n").length,
-  }), [content])
-  const beforeFold = content.slice(0, FOLD)
-  const pastFold = content.length > FOLD
+  const stats = useMemo(() => getMetadata(content), [content])
+  const fold = useMemo(() => getFold(content, viewport), [content, viewport])
+  const beforeFold = fold.visible
+  const pastFold = fold.isFolded
 
   /* ── Actions ────────────────────────────── */
   function insertWrap(wrap: string, placeholder = "text") {
@@ -168,8 +181,23 @@ export default function App() {
     setContent(next)
     setTimeout(() => { el.focus(); el.setSelectionRange(s + txt.length, s + txt.length) }, 0)
   }
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    const mod = e.metaKey || e.ctrlKey
+    if (!mod) return
+    if (e.key.toLowerCase() === "b" && !e.shiftKey) { e.preventDefault(); insertWrap("**") }
+    else if (e.key.toLowerCase() === "i" && !e.shiftKey) { e.preventDefault(); insertWrap("*") }
+    else if (e.key.toLowerCase() === "u") { e.preventDefault(); insertWrap("__") }
+  }
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const txt = e.clipboardData.getData("text")
+    if (/\*\*|__|\*|~~|`/.test(txt)) {
+      // let default paste keep markdown; preview converts to unicode via copy
+    }
+  }
   async function copyUnicode(source: "preview" | "caption" = "preview") {
-    await navigator.clipboard.writeText(unicode)
+    try { await navigator.clipboard.writeText(unicode) } catch {
+      const ta = document.createElement("textarea"); ta.value = unicode; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove()
+    }
     track(source === "caption" ? "copy_caption" : "copy_preview", { len: unicode.length })
     setCopied(true); setTimeout(() => setCopied(false), 1800)
   }
@@ -188,7 +216,8 @@ export default function App() {
     if (!cardRef.current) { alert("Nothing to export on this tab."); return }
     track("export_png_click", { width: cardWidth, gradient: gradient.id })
     setExporting(true)
-    const opts = { cacheBust: true, pixelRatio: 2, backgroundColor: undefined }
+    try { await (document as any).fonts?.ready } catch {}
+    const opts: any = { cacheBust: true, pixelRatio: 2, backgroundColor: undefined }
     try {
       const dataUrl = await toPng(cardRef.current, opts)
       const a = document.createElement("a"); a.download = "linkedin-post.png"; a.href = dataUrl; a.click()
@@ -264,6 +293,9 @@ export default function App() {
               ) : (
                 <button onClick={shareToLinkedIn} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#0A66C2] text-white hover:bg-[#004182] transition"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> Post</button>
               )}
+              <button onClick={() => { const nd = upsertDraft(drafts, content); setDrafts(nd) }} className="text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">Save draft</button>
+              <button onClick={() => setDrawerOpen(v=>!v)} className="text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">Drafts ({drafts.length})</button>
+              <button onClick={async () => { const url = location.origin + location.pathname + "#share=" + encodeShare(content, { cardTitle, cardHeader }); await navigator.clipboard.writeText(url); setShareCopied(true); setTimeout(()=>setShareCopied(false),1500) }} className="text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">{shareCopied ? "✓ Link copied" : "Share link"}</button>
               <button onClick={() => setSettingsOpen(true)}
                 className={`text-xs font-semibold px-3.5 py-1.5 rounded-full border transition active:scale-95 ${aiKey
                   ? "bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-300/50 dark:ring-emerald-700/40 hover:border-emerald-300 dark:hover:border-emerald-700"
@@ -340,6 +372,8 @@ export default function App() {
                           ["𝐁 Bold", "**", "wrap"],
                           ["𝐼 Italic", "*", "wrap"],
                           ["S̶ Strike", "~~", "wrap"],
+                          ["U̲ Under", "__", "wrap"],
+                          ["𝙼 Mono", "`", "wrap"],
                           ["• Bullet", "• ", "insert"],
                           ["→ Arrow", " → ", "insert"],
                           ["# Tag", " #", "insert"],
@@ -355,14 +389,28 @@ export default function App() {
                           <button key={e} onClick={() => insertAtCursor(` ${e} `)} className="px-2 py-1.5 text-xs rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition">{e}</button>
                         ))}
                       </div>
-                      <textarea ref={editorRef} value={content} onChange={e => setContent(e.target.value)} placeholder="Card body — also your LinkedIn caption…" className="w-full min-h-[180px] p-4 text-[14px] leading-6 outline-none resize-y bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
+                      <div className="px-3 py-1.5 flex flex-wrap gap-1 bg-white dark:bg-zinc-900 border-b border-gray-200/60 dark:border-zinc-800">
+                        {["•","◈","◎","→","↳","↓","✓","📌","♻️"].map(s => (
+                          <button key={s} onClick={() => insertAtCursor(s + " ")} className="px-2 py-1 text-xs rounded border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800">{s}</button>
+                        ))}
+                      </div>
+                      <textarea ref={editorRef} value={content} onKeyDown={handleKeyDown} onPaste={handlePaste} onChange={e => setContent(e.target.value)} placeholder="Card body — also your LinkedIn caption… (Ctrl+B bold, Ctrl+I italic, Ctrl+U underline)" className="w-full min-h-[180px] p-4 text-[14px] leading-6 outline-none resize-y bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
                       <div className="px-4 py-2 flex items-center gap-3 text-[11px] text-gray-400 dark:text-zinc-500 border-t border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
-                        <span>{stats.words} words</span><span>·</span><span>{stats.lines} lines</span>
+                        <span>{stats.words} words</span><span>·</span><span>{stats.lines} lines</span><span>·</span><span>{stats.chars}/3000</span><span>·</span><span>{stats.readingLabel}</span>
+                        {unicodeRatio(markdownToUnicode(content)) > 0.3 && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">⚠️ {Math.round(unicodeRatio(markdownToUnicode(content))*100)}% unicode — keep styling on hooks</span>}
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="p-4 space-y-4">
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-zinc-400 mb-1.5">Aspect preset</div>
+                      <div className="flex gap-1.5">
+                        {(["free","1:1","4:5"] as const).map(p => (
+                          <button key={p} onClick={() => { setCardPreset(p); if(p==="1:1") setCardWidth(540); if(p==="4:5") setCardWidth(540) }} className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border ${cardPreset===p?"bg-[#0A66C2] text-white border-[#0A66C2]":"bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700"}`}>{p==="free"?"Free":p==="1:1"?"1:1 1080×1080":"4:5 1080×1350"}</button>
+                        ))}
+                      </div>
+                    </div>
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-xs text-gray-500 dark:text-zinc-400">Width</span>
@@ -370,6 +418,12 @@ export default function App() {
                       </div>
                       <input type="range" min="300" max="700" value={cardWidth} onChange={e => setCardWidth(Number(e.target.value))} className="w-full" />
                     </div>
+                    <label className="flex items-center justify-between text-xs">
+                      <span className="text-gray-500 dark:text-zinc-400">80px safe zone</span><input type="checkbox" checked={safeZone} onChange={e=>setSafeZone(e.target.checked)} />
+                    </label>
+                    <label className="flex items-center justify-between text-xs">
+                      <span className="text-gray-500 dark:text-zinc-400">Attribution</span><input type="checkbox" checked={showAttribution} onChange={e=>setShowAttribution(e.target.checked)} />
+                    </label>
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-xs text-gray-500 dark:text-zinc-400">Text color</span>
@@ -412,7 +466,7 @@ export default function App() {
                   <div className="px-4 pt-3 pb-2 border-b border-gray-200/60 dark:border-zinc-800">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-sm text-gray-800 dark:text-zinc-200">Editor</span>
-                      <span className="text-xs text-gray-400 dark:text-zinc-500 tabular-nums">{content.length} / 3000</span>
+                      <span className="text-xs text-gray-400 dark:text-zinc-500 tabular-nums">{stats.chars} / 3000</span>
                     </div>
                     <div className="mt-2 flex gap-1 p-1 rounded-xl bg-gray-100 dark:bg-zinc-800 border border-gray-200/60 dark:border-zinc-700">
                       {(["write", "profile"] as const).map(id => (
@@ -431,6 +485,8 @@ export default function App() {
                           ["𝐁 Bold", "**", "wrap"],
                           ["𝐼 Italic", "*", "wrap"],
                           ["S̶ Strike", "~~", "wrap"],
+                          ["U̲ Under", "__", "wrap"],
+                          ["𝙼 Mono", "`", "wrap"],
                           ["• Bullet", "• ", "insert"],
                           ["→ Arrow", " → ", "insert"],
                           ["# Tag", " #", "insert"],
@@ -446,9 +502,15 @@ export default function App() {
                           <button key={e} onClick={() => insertAtCursor(` ${e} `)} className="px-2 py-1.5 text-xs rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 transition">{e}</button>
                         ))}
                       </div>
-                      <textarea ref={editorRef} value={content} onChange={e => setContent(e.target.value)} placeholder="Write your LinkedIn post…" className="w-full min-h-[240px] p-4 text-[14px] leading-6 outline-none resize-y bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
+                      <div className="px-3 py-1.5 flex flex-wrap gap-1 bg-white dark:bg-zinc-900 border-b border-gray-200/60 dark:border-zinc-800">
+                        {["•","◈","◎","→","↳","↓","✓","📌","♻️"].map(s => (
+                          <button key={s} onClick={() => insertAtCursor(s + " ")} className="px-2 py-1 text-xs rounded border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800">{s}</button>
+                        ))}
+                      </div>
+                      <textarea ref={editorRef} value={content} onKeyDown={handleKeyDown} onPaste={handlePaste} onChange={e => setContent(e.target.value)} placeholder="Write your LinkedIn post… (Ctrl+B/I/U)" className="w-full min-h-[240px] p-4 text-[14px] leading-6 outline-none resize-y bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
                       <div className="px-4 py-2 flex items-center gap-3 text-[11px] text-gray-400 dark:text-zinc-500 border-t border-gray-200/60 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-900/40">
-                        <span>{stats.words} words</span><span>·</span><span>{stats.lines} lines</span>
+                        <span>{stats.words} words</span><span>·</span><span>{stats.lines} lines</span><span>·</span><span>{stats.chars}/3000</span><span>·</span><span>{stats.readingLabel}</span>
+                        {unicodeRatio(markdownToUnicode(content)) > 0.3 && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">⚠️ {Math.round(unicodeRatio(markdownToUnicode(content))*100)}% unicode</span>}
                       </div>
                       <div className="p-3">
                         <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-zinc-500">Bold, italic & bullets → LinkedIn-safe Unicode</div>
@@ -480,24 +542,35 @@ export default function App() {
                     <span className="w-2 h-2 rounded-full bg-[#0A66C2]" />
                     <div>
                       <div className="text-sm font-bold text-gray-800 dark:text-zinc-200">Feed Preview — how LinkedIn will show it</div>
-                      <div className="text-[11px] text-gray-400 dark:text-zinc-500">Realistic rendering · format keeps as Unicode</div>
+                      <div className="text-[11px] text-gray-400 dark:text-zinc-500">Realistic rendering · {FOLD_CONFIGS[viewport].chars}ch / {FOLD_CONFIGS[viewport].maxLines} lines · {viewport}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <div className="flex p-1 rounded-full bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700">
+                      {(["desktop", "mobile"] as const).map(v => (
+                        <button key={v} onClick={() => setViewport(v)} className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition ${viewport === v ? "bg-[#0A66C2] text-white shadow" : "text-gray-500 dark:text-zinc-400"}`}>{v === "desktop" ? "Desktop 560" : "Mobile 375"}</button>
+                      ))}
+                    </div>
                     <button onClick={() => copyUnicode("preview")}
                       className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded-full border transition active:scale-95 ${copied ? "bg-emerald-500 border-emerald-500 text-white" : "bg-[#0A66C2] border-[#0A66C2] text-white hover:bg-[#004182] hover:border-[#004182] shadow-[0_1px_6px_rgba(10,102,194,0.3)]"}`}>
                       {copied ? "✓ Copied" : "⎘ Copy for LinkedIn"}
                     </button>
                     <button onClick={shareToLinkedIn} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#0A66C2] text-white hover:bg-[#004182] transition active:scale-95"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg> Post</button>
-                    <button onClick={() => setExpanded(!expanded)}
+                    <button onClick={() => setExpanded(!expanded)} aria-expanded={expanded}
                       className="text-xs px-3 py-1.5 rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
                       {expanded ? "Show less" : "…see more"}
                     </button>
                   </div>
                 </div>
+                <div className="flex flex-wrap gap-2 text-[11px] px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800">
+                  <span className="tabular-nums">{stats.chars} / 3000</span><span className="text-gray-300">·</span><span>{stats.words} words</span><span className="text-gray-300">·</span><span>{stats.lines} lines</span><span className="text-gray-300">·</span><span>#{stats.hashtags}</span><span className="text-gray-300">·</span><span>{stats.readingLabel}</span><span className="text-gray-300">·</span><span className={pastFold ? "text-amber-600" : "text-emerald-600"}>{pastFold ? `folded ${[...fold.hidden].length}ch past` : `${FOLD_CONFIGS[viewport].chars - [...beforeFold].length}ch to fold`} ({fold.reason})</span>
+                </div>
+                {fold.isEarlyFold && !expanded && (
+                  <div className="text-xs px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200">⚠️ Post truncates early due to line breaks before reaching the character limit</div>
+                )}
 
                 {/* Feed card */}
-                <div className="mx-auto max-w-[560px] transition-all">
+                <div className={`mx-auto transition-all ${viewport === "mobile" ? "max-w-[375px]" : "max-w-[560px]"}`}>
                   <div className="rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-sm bg-white dark:bg-zinc-900">
                     {/* Post header */}
                     <div className="p-3 flex gap-3">
@@ -571,7 +644,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="rounded-3xl border border-white/70 dark:border-zinc-800 bg-[radial-gradient(circle,rgba(120,130,150,0.25)_1px,transparent_1px)] bg-[size:18px_18px] p-6 flex justify-center">
-                  <div ref={cardRef} className={`w-full rounded-[12px] overflow-hidden shadow-2xl ${gradient.id === "corporate-white" ? "border border-gray-200" : ""}`} style={{ background: gradient.bg, maxWidth: `${cardWidth}px` }}>
+                  <div ref={cardRef} className={`w-full rounded-[12px] overflow-hidden shadow-2xl ${gradient.id === "corporate-white" ? "border border-gray-200" : ""}`} style={{ background: gradient.bg, maxWidth: `${cardWidth}px`, aspectRatio: cardPreset==="1:1" ? "1 / 1" : cardPreset==="4:5" ? "4 / 5" : undefined }}>
                     {/* macOS header */}
                     <div className="px-4 py-3 flex items-center justify-between" style={{ background: gradient.id === "corporate-white" ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.05)", borderBottom: gradient.id === "corporate-white" ? "1px solid rgba(15,23,42,0.08)" : "1px solid rgba(255,255,255,0.1)" }}>
                       <div className="flex items-center gap-2">
@@ -588,9 +661,9 @@ export default function App() {
                     </div>
 
                     {/* Content */}
-                    <div className="p-6 md:p-8">
-                      <div className="text-[28px] md:text-[32px] font-bold leading-tight" style={{ color: textColor, fontFamily: "'Source Serif 4', serif" }}>{cardTitle}</div>
-                      <div className="mt-3 text-[14px] leading-5 [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_br]:block [&_br]:h-1" style={{ color: textColor, opacity: 0.95 }} dangerouslySetInnerHTML={{ __html: cardHtml }} />
+                    <div className={`p-6 md:p-8 ${safeZone ? "ring-2 ring-dashed ring-white/40 ring-offset-2 ring-offset-transparent m-2" : ""}`} style={safeZone ? { padding: "80px" } : undefined}>
+                      <div className="font-bold leading-tight" style={{ color: textColor, fontFamily: "'Source Serif 4', serif", fontSize: [...cardTitle].length <=120 ? "32px" : [...cardTitle].length <=280 ? "24px" : "20px" }}>{cardTitle}</div>
+                      <div className="mt-3 leading-5 [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_br]:block [&_br]:h-1" style={{ color: textColor, opacity: 0.95, fontSize: [...content].length <=280 ? "14px" : "13px" }} dangerouslySetInnerHTML={{ __html: cardHtml }} />
                       {thought && (
                         <div className="mt-4 text-sm leading-6 p-4 rounded-lg" style={{
                           background: "rgba(255,255,255,0.05)",
@@ -603,7 +676,7 @@ export default function App() {
                     </div>
 
                     {/* Glass footer */}
-                    <div className="px-6 py-4 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.05)", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+                    {showAttribution && <div className="px-6 py-4 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.05)", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
                       <div className="flex items-center gap-3">
                         <img src={resolvedAvatar || avatar} alt="" className="w-10 h-10 rounded-full object-cover" style={{ border: `2px solid ${textColor}` }} />
                         <div>
@@ -615,7 +688,7 @@ export default function App() {
                         Follow me
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" /></svg>
 </a>
-                    </div>
+                    </div>}
                   </div>
                 </div>
 
@@ -663,6 +736,27 @@ export default function App() {
         </footer>
 
         <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        {drawerOpen && (
+          <div className="fixed inset-0 z-40" onClick={()=>setDrawerOpen(false)}>
+            <div className="absolute inset-0 bg-black/30" />
+            <div onClick={e=>e.stopPropagation()} className="absolute right-0 top-0 h-full w-[340px] bg-white dark:bg-zinc-900 border-l border-gray-200 dark:border-zinc-800 p-4 overflow-auto">
+              <div className="flex items-center justify-between"><div className="font-bold">Recent Drafts</div><button onClick={()=>setDrawerOpen(false)} className="w-8 h-8 grid place-items-center rounded-full border">✕</button></div>
+              <div className="mt-4 space-y-2">
+                {drafts.length===0 && <div className="text-sm text-gray-400">No drafts yet</div>}
+                {drafts.map(d=>(
+                  <div key={d.id} className="p-3 rounded-xl border border-gray-200 dark:border-zinc-700">
+                    <div className="text-xs font-semibold truncate">{d.title}</div>
+                    <div className="text-[11px] text-gray-400">{new Date(d.updatedAt).toLocaleString()}</div>
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={()=>{ setContent(d.content); setDrawerOpen(false) }} className="text-xs px-2 py-1 rounded-full bg-[#0A66C2] text-white">Load</button>
+                      <button onClick={()=>{ const nd=drafts.filter(x=>x.id!==d.id); setDrafts(nd); saveDrafts(nd) }} className="text-xs px-2 py-1 rounded-full border">Delete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {globalAi && (
           <div className="fixed inset-0 z-40 grid place-items-center bg-white/30 dark:bg-black/30 backdrop-blur-[6px] p-4">

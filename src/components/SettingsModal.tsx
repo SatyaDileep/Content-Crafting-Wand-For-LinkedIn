@@ -17,7 +17,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
 
         <div className="mt-4 space-y-4">
           <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 text-xs leading-5 text-emerald-800 dark:text-emerald-300">
-            <b>Your data stays on your device.</b> Nothing is sent to any server. AI features use your own key, sent straight from your browser to the provider you choose. Remove anytime.
+            <b>100% Client-Side: API keys never touch an intermediary server.</b> Keys in localStorage only, sent directly to provider.
           </div>
 
           <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-950/40 p-3 space-y-3">
@@ -46,15 +46,17 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
                 <select value={aiModel} onChange={e => setAiModel(e.target.value)} className={`${inputCls} cursor-pointer`}>
                   {GROQ_MODELS.map(m => (<option key={m.id} value={m.id}>{m.label}</option>))}
                 </select>
+              ) : aiProvider === "anthropic" ? (
+                <input value={aiModel} onChange={e => setAiModel(e.target.value)} placeholder="claude-3-5-sonnet-20241022" className={inputCls} />
               ) : (
-                <input value={aiModel} onChange={e => setAiModel(e.target.value)} placeholder="e.g. gpt-4o-mini" className={inputCls} />
+                <input value={aiModel} onChange={e => setAiModel(e.target.value)} placeholder={aiProvider === "openrouter" ? "meta-llama/llama-3.3-70b-instruct" : "gpt-4o-mini"} className={inputCls} />
               )}
             </div>
 
-            {aiProvider === "openai" && (
+            {(aiProvider === "openai" || aiProvider === "openrouter") && (
               <div>
                 <div className="text-xs font-medium text-gray-600 dark:text-zinc-300">Base URL</div>
-                <input value={aiBase} onChange={e => setAiBase(e.target.value)} placeholder={DEFAULT_OPENAI_BASE} className={inputCls} />
+                <input value={aiBase} onChange={e => setAiBase(e.target.value)} placeholder={aiProvider === "openrouter" ? "https://openrouter.ai/api/v1" : DEFAULT_OPENAI_BASE} className={inputCls} />
                 <div className="text-[11px] text-gray-500 dark:text-zinc-400 mt-1">OpenAI-compatible endpoint (OpenRouter, Together, local LLMs, etc.).</div>
               </div>
             )}

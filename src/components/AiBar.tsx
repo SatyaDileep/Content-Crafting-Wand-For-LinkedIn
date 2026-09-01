@@ -10,6 +10,9 @@ const AI_ACTIONS: { a: SimpleAction; label: string }[] = [
   { a: "emojis", label: "😊 Add Emojis" },
   { a: "professional", label: "💼 Pro" },
   { a: "hashtags", label: "🏷️ Hashtags" },
+  { a: "hook", label: "🎣 Hook" },
+  { a: "defluff", label: "✂️ De-Fluff" },
+  { a: "extractQuote", label: "💬 Quote" },
 ]
 
 const IMPROVE_PRESETS = [
@@ -25,6 +28,8 @@ const PROVIDER_COLORS: Record<AIProviderType, string> = {
   gemini: "#4285F4",
   groq: "#F55036",
   openai: "#10A37F",
+  anthropic: "#D4A574",
+  openrouter: "#8B5CF6",
 }
 
 function Spinner({ size = 12 }: { size?: number }) {

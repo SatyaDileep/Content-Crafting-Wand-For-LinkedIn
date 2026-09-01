@@ -1,6 +1,6 @@
-export type GeminiAction = "improve" | "emojis" | "professional" | "hashtags" | "generateThought" | "generateTitleHeader"
+export type GeminiAction = "improve" | "emojis" | "professional" | "hashtags" | "generateThought" | "generateTitleHeader" | "hook" | "defluff" | "extractQuote"
 
-export type AIProviderType = "gemini" | "groq" | "openai"
+export type AIProviderType = "gemini" | "groq" | "openai" | "anthropic" | "openrouter"
 
 export const GEMINI_MODELS = [
   { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash (fast, recommended)" },
@@ -25,6 +25,8 @@ export const PROVIDER_LABELS: Record<AIProviderType, string> = {
   gemini: "Gemini",
   groq: "Groq",
   openai: "Custom (OpenAI-compatible)",
+  anthropic: "Anthropic",
+  openrouter: "OpenRouter",
 }
 
 const PROMPTS: Record<GeminiAction, (text: string)=>string> = {
@@ -34,6 +36,9 @@ const PROMPTS: Record<GeminiAction, (text: string)=>string> = {
   hashtags: t => `You are a LinkedIn growth expert. For the post below, recommend 5-7 high-impression hashtags that best match its topic to boost discovery. Mix 2-3 broad, high-volume tags with 3-4 niche, lower-competition ones. IMPORTANT: Return ONLY the hashtags on ONE single line, space-separated (e.g. "#AI #ProductManagement #BuildInPublic #Leadership"), no numbering, no bullets, no newlines, no extra commentary:\n\n${t}`,
   generateThought: t => `Based on the following LinkedIn post content, generate a short, insightful, and concise "highlighted thought" that stands out as a pull quote. Maximum 3 lines. Include 1-2 relevant emojis. Return ONLY the thought text, nothing else:\n\n${t}`,
   generateTitleHeader: t => `Based on the following post content, generate a short catchy card title and a concise series header (like "AI-Byte Series #Day24"). Format the response EXACTLY as: Title | Header. Return nothing else:\n\n${t}`,
+  hook: t => `Generate 5 distinct LinkedIn hook opening lines, each strictly under 140 characters. Use curiosity, contrarian viewpoint, or concrete data. Number 1-5, each on its own line, no extra commentary. Post context:\n\n${t}`,
+  defluff: t => `De-fluff and format scannable: restructure dense paragraphs into clean 1-2 sentence lines optimized for readability. Keep markdown **bold** on keys. Return ONLY the post:\n\n${t}`,
+  extractQuote: t => `Extract the central takeaway into one punchy sentence suitable for an Image Card. Return ONLY that sentence:\n\n${t}`,
 }
 
 export function buildCustomImprovePrompt(text: string, instruction: string): string {
@@ -56,6 +61,23 @@ async function generateWithGemini(prompt: string, apiKey: string, model: string)
   const data = await res.json()
   const out = data?.candidates?.[0]?.content?.parts?.[0]?.text
   if(!out) throw new Error("Empty response from Gemini")
+  return out.trim()
+}
+
+async function generateWithAnthropic(prompt: string, apiKey: string, model: string): Promise<string> {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+    body: JSON.stringify({ model: model || "claude-3-5-sonnet-20241022", max_tokens: 1800, messages: [{ role: "user", content: prompt }] }),
+  })
+  if (!res.ok) {
+    let detail = ""
+    try { const j = await res.json(); detail = JSON.stringify(j?.error || j).slice(0, 400) } catch { detail = await res.text().catch(() => "") }
+    throw new Error(`Anthropic ${res.status}: ${detail}`)
+  }
+  const data = await res.json()
+  const out = data?.content?.[0]?.text
+  if (!out) throw new Error("Empty response from Anthropic")
   return out.trim()
 }
 
@@ -102,16 +124,26 @@ export async function callAI(action: GeminiAction, text: string, settings: AISet
 }
 
 export async function callAIWithPrompt(prompt: string, settings: AISettings): Promise<AIResult> {
-  if(!settings.apiKey) throw new Error("Add your AI API key in Settings.")
-  if(settings.provider === "gemini"){
+  if (!settings.apiKey) throw new Error("Add your AI API key in Settings. 100% Client-Side: API keys never touch an intermediary server.")
+  if (settings.provider === "gemini") {
     const out = await generateWithGemini(prompt, settings.apiKey, settings.model || DEFAULT_GEMINI_MODEL)
     return { text: out, source: "gemini" }
+  }
+  if (settings.provider === "anthropic") {
+    const out = await generateWithAnthropic(prompt, settings.apiKey, settings.model)
+    return { text: out, source: "anthropic" }
+  }
+  if (settings.provider === "openrouter") {
+    const base = settings.baseUrl || "https://openrouter.ai/api/v1"
+    const model = settings.model || "meta-llama/llama-3.3-70b-instruct"
+    const out = await generateWithOpenAI(prompt, settings.apiKey, model, base)
+    return { text: out, source: "openrouter" }
   }
   const base = settings.provider === "groq"
     ? "https://api.groq.com/openai/v1"
     : (settings.baseUrl || DEFAULT_OPENAI_BASE)
   const model = settings.model || (settings.provider === "groq" ? DEFAULT_GROQ_MODEL : "")
-  if(!model) throw new Error("Specify a model name for this provider.")
+  if (!model) throw new Error("Specify a model name for this provider.")
   const out = await generateWithOpenAI(prompt, settings.apiKey, model, base)
   return { text: out, source: settings.provider }
 }

@@ -24,8 +24,7 @@ const groqIds = GROQ_MODELS.map(m => m.id)
 
 function initProvider(): AIProviderType {
   const v = localStorage.getItem("cc_ai_provider")
-  if (v === "gemini" || v === "groq" || v === "openai") return v
-  // migrate from the old dual-key setup
+  if (v === "gemini" || v === "groq" || v === "openai" || v === "anthropic" || v === "openrouter") return v as AIProviderType
   if (localStorage.getItem("cc_groq_key") && !localStorage.getItem("cc_gemini_key")) return "groq"
   return "gemini"
 }
